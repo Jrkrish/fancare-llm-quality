@@ -10,8 +10,9 @@ CI, drift monitoring, and conventional API / UI / data / load testing.
 Everything runs on free tiers or locally: Groq or Gemini (free API keys), Ollama as an optional local
 fallback, local ONNX models for embeddings, reranking and OCR, SQLite for logs, GitHub Actions for CI.
 
-> **Results:** every number in the results tables below comes from running this repo. Until it has
-> been run, the cells say _"not yet run"_. No figures are estimated or invented.
+> **Results:** every number in the results tables below comes from running this repo. Smoke-run results,
+> including the invalid runs and what each one exposed, are in [Results](#results). Anything not run yet
+> says _"not yet run"_. No figures are estimated or invented.
 
 ---
 
@@ -250,9 +251,46 @@ HTML (pytest-html), JUnit and markdown reports are uploaded as artifacts.
 
 ## Results
 
-All cells are filled from real runs of this repo. Model: _fill in_. Date: _fill in_.
+All cells are filled from real runs of this repo.
 
-**RAG eval** (`python -m eval.run --profile full`, from `reports/eval/latest/summary.md`)
+### Smoke runs so far
+
+`python -m eval.run --profile smoke`: 12 cases (2 per category) × 2 runs each, system under test
+`openai/gpt-oss-120b` on Groq with prompt v1 and hybrid retrieval + reranking. Every run is listed,
+including the invalid ones, because each one exposed a problem in the platform rather than the bot.
+
+| # | Date (UTC) | Judge | Validity | Gates | Why |
+|---|---|---|---|---|---|
+| 1 | 2026-11-03 11:25 | Gemini 2.5 Flash | **invalid** | (failed) | Judge hit Gemini's 20 requests/day free quota; 30 judge scores missing |
+| 2 | 2026-11-03 11:59 | Qwen3.8 27B (Groq) | valid | **passed** | Judge error rate 0.028, run error rate 0.083 |
+| 3 | 2026-11-03 12:26 | Qwen3.8 27B (Groq) | **invalid** | (failed) | Judge error rate 0.222: Groq "Request too large" was not retried |
+| 4 | _running_ | Qwen3.8 27B (Groq) | _pending_ | _pending_ | First run with all fixes above |
+
+**Run 2, the only valid run so far:**
+
+| Metric | Value | Gate |
+|---|---|---|
+| faithfulness | 0.820 | ≥ 0.75 |
+| answer_relevancy | 0.954 | ≥ 0.75 |
+| citation_correctness | 0.922 | ≥ 0.60 |
+| refusal_correctness | 0.909 | ≥ 0.80 |
+| retrieval_recall | 0.808 | ≥ 0.60 |
+| hallucination_rate | 0.045 | ≤ 0.15 |
+| case pass rate | 50% (6 of 12) | none |
+| unstable cases | 5 of 12 | none |
+| latency p50 / p95 | 2.7 s / 6.4 s | none |
+| system-under-test cost | $0.016 for 24 runs (list-price estimate) | none |
+
+Read with care: two smoke cases per category is too few to say anything per category, and run 2 predates
+the refusal-detector fix. Re-scoring its answers with the fixed detector turns NM-02's one "hallucination"
+and one PAR-02 refusal miss into passes. The remaining failures were real: two retrieval misses
+(NM-02, MH-02), one answer that hedged instead of concluding (MH-02), and faithfulness scores that
+moved between 0.6 and 1.0 for nearly identical answers (CON-02). That last one is why judge calibration
+comes before trusting the faithfulness gate.
+
+### Full eval
+
+**RAG eval** (`python -m eval.run --profile full`, from `reports/eval/latest/summary.md`). Model: _fill in_. Date: _fill in_.
 
 | Category | Cases | faithfulness | answer_relevancy | ctx precision | ctx recall | citation | refusal | Hallucination |
 |---|---|---|---|---|---|---|---|---|
@@ -300,6 +338,21 @@ These were found by the tests during development and fixed. They are real, not i
 - **Golden labels that were too narrow.** Two cases marked correct answers as retrieval or citation misses
   because valid evidence (another section stating the same fact) was missing from the label. Both labels
   were widened, with a note in the dataset saying why.
+- **A curly apostrophe faked a hallucination.** The second smoke run flagged NM-02 as "answered an
+  unanswerable question". The answer was "I don’t have that information", written with a typographic
+  apostrophe that the refusal detector's `don't` pattern did not match. The detector now normalises
+  typographic punctuation; re-scoring that run changed exactly the two misread answers and nothing else.
+- **A tool call after the tool budget.** When the agent used all its tool rounds, the forced final call
+  (sent without tools) made `gpt-oss` emit a tool call anyway, and Groq rejected the request (HTTP 400
+  `tool_use_failed`), so the case errored. The agent now tells the model to answer from what it has and,
+  if the provider still rejects it, falls back to the standard "I don't have that information" reply.
+- **A rate limit misread as permanent.** Groq rejects a judge request as "Request too large" when it no
+  longer fits that minute's token budget. Treating it as permanent made the third smoke run invalid
+  (judge error rate 0.22). The same requests succeed once the window rolls over, so the client now waits
+  and retries.
+- **Judge scores you could not audit.** Faithfulness scored nearly identical answers 1.0 and 0.6. Reports
+  now list every claim the judge rejected, with its reason (read from DeepEval's verdicts, no extra calls),
+  which is what judge calibration needs.
 
 ## Limitations
 
