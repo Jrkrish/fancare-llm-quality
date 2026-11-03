@@ -10,10 +10,6 @@ CI, drift monitoring, and conventional API / UI / data / load testing.
 Everything runs on free tiers or locally: Groq or Gemini (free API keys), Ollama as an optional local
 fallback, local ONNX models for embeddings, reranking and OCR, SQLite for logs, GitHub Actions for CI.
 
-> **Results:** every number in the results tables below comes from running this repo. Smoke-run results,
-> including the invalid runs and what each one exposed, are in [Results](#results). Anything not run yet
-> says _"not yet run"_. No figures are estimated or invented.
-
 ---
 
 ## Contents
@@ -264,29 +260,43 @@ including the invalid ones, because each one exposed a problem in the platform r
 | 1 | 2026-11-03 11:25 | Gemini 2.5 Flash | **invalid** | (failed) | Judge hit Gemini's 20 requests/day free quota; 30 judge scores missing |
 | 2 | 2026-11-03 11:59 | Qwen3.8 27B (Groq) | valid | **passed** | Judge error rate 0.028, run error rate 0.083 |
 | 3 | 2026-11-03 12:26 | Qwen3.8 27B (Groq) | **invalid** | (failed) | Judge error rate 0.222: Groq "Request too large" was not retried |
-| 4 | _running_ | Qwen3.8 27B (Groq) | _pending_ | _pending_ | First run with all fixes above |
+| 4 | 2026-11-03 12:57 | Qwen3.8 27B (Groq) | valid | **failed** | First run with all fixes. Judge error rate 0.000; faithfulness and hallucination gates failed (below) |
 
-**Run 2, the only valid run so far:**
+**The two valid runs:**
 
-| Metric | Value | Gate |
-|---|---|---|
-| faithfulness | 0.820 | ≥ 0.75 |
-| answer_relevancy | 0.954 | ≥ 0.75 |
-| citation_correctness | 0.922 | ≥ 0.60 |
-| refusal_correctness | 0.909 | ≥ 0.80 |
-| retrieval_recall | 0.808 | ≥ 0.60 |
-| hallucination_rate | 0.045 | ≤ 0.15 |
-| case pass rate | 50% (6 of 12) | none |
-| unstable cases | 5 of 12 | none |
-| latency p50 / p95 | 2.7 s / 6.4 s | none |
-| system-under-test cost | $0.016 for 24 runs (list-price estimate) | none |
+| Metric | Run 2 | Run 4 (all fixes) | Gate |
+|---|---|---|---|
+| faithfulness | 0.820 | **0.708** | ≥ 0.75 |
+| answer_relevancy | 0.954 | 0.917 | ≥ 0.75 |
+| citation_correctness | 0.922 | 0.952 | ≥ 0.60 |
+| refusal_correctness | 0.909 | 1.000 | ≥ 0.80 |
+| retrieval_recall | 0.808 | 0.783 | ≥ 0.60 |
+| hallucination_rate | 0.045 | **0.182** | ≤ 0.15 |
+| judge error rate | 0.028 | 0.000 | ≤ 0.10 |
+| run error rate | 0.083 | 0.083 | ≤ 0.10 |
+| case pass rate | 50% (6 of 12) | 50% (6 of 12) | none |
+| unstable cases | 5 of 12 | 5 of 12 | none |
+| latency p50 / p95 | 2.7 s / 6.4 s | 3.6 s / 24.4 s | none |
+| system-under-test cost (list-price estimate) | $0.016 | $0.016 | none |
 
-Read with care: two smoke cases per category is too few to say anything per category, and run 2 predates
-the refusal-detector fix. Re-scoring its answers with the fixed detector turns NM-02's one "hallucination"
-and one PAR-02 refusal miss into passes. The remaining failures were real: two retrieval misses
-(NM-02, MH-02), one answer that hedged instead of concluding (MH-02), and faithfulness scores that
-moved between 0.6 and 1.0 for nearly identical answers (CON-02). That last one is why judge calibration
-comes before trusting the faithfulness gate.
+**What run 4 says.** Refusals are now perfect (1.000) and every judge measurement succeeded, so the
+two failed gates are real signals, not infrastructure noise. The judge's rejected claims (now listed in
+each report) split into two groups:
+
+- **Genuine answer problems.** MH-01 says an E3 code means "the motor needs service"; the docs say that
+  only applies if E3 persists after a power cycle. PAR-02 adds advice ("check the retailer for pricing")
+  that no document gives. Several answers pad the reply with battery-swap steps or ticket offers the
+  question did not ask for, which is what pulls PAR-02's answer relevancy down to 0.53.
+- **A limit of the faithfulness metric.** The judge sees only the retrieved passages, so it marks as
+  unsupported any claim that restates the user's own words ("you bought it in June 2023"), the bot's
+  own tools ("I can open a support ticket"), or a gap statement ("the documentation does not mention
+  Wi-Fi 6"). With ambiguous claims penalised, these drag scores down: CON-02 run 1 scored 0.00 for a
+  correct, cited answer. Judge calibration against human labels is the next step before the faithfulness
+  and hallucination gates can be trusted as merge blockers.
+
+Infrastructure notes: run 4's two errored runs hit Groq's 200,000 tokens/day limit for `gpt-oss-120b`
+near the end of the run, and its p95 latency includes the waits for per-minute token windows.
+Two smoke cases per category is too few to compare categories.
 
 ### Full eval
 
@@ -310,7 +320,10 @@ answer relevancy kappa _not yet run_, refusal detector kappa _not yet run_. Unre
 
 **Conversations** (`reports/conversation/summary.md`): turn pass rate _not yet run_.
 
-**Document extraction** (`python -m eval.extraction`): field accuracy _not yet run_, graceful failure _not yet run_.
+**Document extraction** (`python -m eval.extraction`, `reports/extraction/summary.md`): on the 7 clean
+documents (PDF, PNG, JPG, including one with an injected instruction), field accuracy is 100% for
+`serial_no`, `purchase_date` and `model`. On the 3 damaged documents (blurred, truncated, smudged),
+graceful failure is 100%: each returns `failed`/`unreadable` with every field empty, and 0 fields are guessed.
 
 **Load** (`make load`, `reports/load/summary.md`): p50 / p95 / p99 _not yet run_, error rate _not yet run_,
 cost per 100 conversations _not yet run_.
