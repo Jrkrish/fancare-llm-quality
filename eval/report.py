@@ -8,6 +8,11 @@ from pathlib import Path
 from eval.config import REPORTS_DIR
 from eval.runner import EvalReport
 
+INVALID = (
+    "INVALID RUN: too many infrastructure or judge errors (see error_rate / judge_error_rate). "
+    "The quality scores below are based on too few measurements to trust; fix the cause and re-run."
+)
+
 METRIC_COLUMNS = [
     "faithfulness", "answer_relevancy", "contextual_precision", "contextual_recall",
     "citation_correctness", "refusal_correctness", "retrieval_recall",
@@ -67,6 +72,7 @@ def render_markdown(report: EvalReport) -> str:
         f"| Judge | {report.judge or 'none (deterministic metrics only)'} |",
         f"| Cases x runs | {int(s.get('n_cases', 0))} x {report.runs_per_case} |",
         "",
+        *([f"> **{INVALID}**", ""] if not report.valid else []),
         f"## Gates: {'PASSED' if report.gates_passed else 'FAILED'}",
         "",
         "| Metric | Value | Gate | Result |",

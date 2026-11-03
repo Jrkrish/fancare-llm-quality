@@ -10,11 +10,13 @@ cases_per_category = 0     # 0 = all cases; K > 0 = first K cases of each catego
 max_error_rate = 0.10      # share of runs allowed to fail for infrastructure reasons (rate limits, timeouts)
 
 [judge]
-# Use a different model family from the system under test to limit self-preference bias.
+# Use a different model family from the system under test (gpt-oss) to limit self-preference bias.
+# Qwen on Groq has its own free-tier quota (1,000 requests/day, 8,000 tokens/min at the time of writing);
+# Gemini 2.5 Flash's free tier allowed only 20 requests/day, too few for even the smoke profile.
 # Env overrides: JUDGE_PROVIDER, JUDGE_MODEL.
-provider = "gemini"
-model = "gemini-2.5-flash"
-min_interval_s = 4.0       # spacing between judge requests (free-tier RPM)
+provider = "groq"
+model = "qwen/qwen3.8-27b"
+min_interval_s = 2.0       # spacing between judge requests (free-tier RPM)
 
 # Per-run pass thresholds (score >= threshold).
 [thresholds]

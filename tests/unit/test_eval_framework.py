@@ -196,3 +196,26 @@ class TestJudgeWiring:
         case = LLMTestCase(input="Wi-Fi?", actual_output="It uses 2.4 GHz.", retrieval_context=["2.4 GHz only"])
         assert metric.measure(case) == expected
         assert judge.calls >= 3
+
+
+def test_judge_errors_make_the_run_invalid(config):
+    from eval.runner import RunScore
+
+    target = ScriptedTarget({ANSWER_CASE.question: [GOOD] * 3})
+    runner = EvalRunner(config, target)
+    result = runner.evaluate_case(ANSWER_CASE)
+    for run in result.runs:  # simulate a judge that ran out of quota on every run
+        run.scores["faithfulness"] = None
+        run.metric_errors["faithfulness"] = "QuotaExhausted: daily quota"
+    report = runner.build_report([result])
+    assert report.summary["judge_error_rate"] == 1.0
+    assert not report.valid
+    assert "judge_error_rate" in " ".join(report.gate_failures)
+    assert isinstance(result.runs[0], RunScore)
+
+
+def test_not_applicable_judge_metric_is_not_an_error(config):
+    target = ScriptedTarget({REFUSE_CASE.question: [REFUSAL] * 3})
+    runner = EvalRunner(config, target)
+    report = runner.build_report([runner.evaluate_case(REFUSE_CASE)])
+    assert report.summary["judge_error_rate"] == 0.0 and report.valid

@@ -94,15 +94,16 @@ flowchart LR
 
 ## Quick start
 
-Requirements: Python 3.11, and a free [Groq](https://console.groq.com) key (system under test). For the
-LLM-judged metrics, also a free [Gemini](https://aistudio.google.com) key (judge, a different model family to
-limit self-preference bias). Node 20+ is only needed for promptfoo and newman.
+Requirements: Python 3.11 and a free [Groq](https://console.groq.com) key. The bot runs on
+`openai/gpt-oss-120b`; the DeepEval judge runs on `qwen/qwen3.8-27b`, a different model family to limit
+self-preference bias, with its own free-tier quota. A [Gemini](https://aistudio.google.com) key is optional
+(alternative bot provider). Node 20+ is only needed for promptfoo and newman.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
 python -m playwright install chromium
-cp .env.example .env                                   # set GROQ_API_KEY and GEMINI_API_KEY
+cp .env.example .env                                   # set GROQ_API_KEY
 
 uvicorn app.main:app --port 8000                       # API + UI at http://localhost:8000, Swagger at /docs
 ```
@@ -117,10 +118,10 @@ On first start the app downloads ~150 MB of ONNX models into `.cache/models`.
 | `pytest tests/web` (`make test-web`) | Playwright UI tests | no |
 | `pytest tests/data` (`make test-data`) | SQL checks on whatever logs exist | no |
 | `pytest tests/safety` / `tests/tooluse` / `tests/conversation` | LLM suites (skipped without a key) | Groq |
-| `python -m eval.run --profile smoke` (`make eval`) | RAG eval, 12 cases x 2 runs | Groq + Gemini |
-| `python -m eval.run --profile full` | RAG eval, 66 cases x 3 runs | Groq + Gemini |
+| `python -m eval.run --profile smoke` (`make eval`) | RAG eval, 12 cases x 2 runs | Groq |
+| `python -m eval.run --profile full` | RAG eval, 66 cases x 3 runs | Groq |
 | `python -m eval.run --profile nojudge` | RAG eval, deterministic metrics only | Groq |
-| `python -m eval.regression ...` (`make regress`) | Variants vs baseline, fails on regression | Groq + Gemini |
+| `python -m eval.regression ...` (`make regress`) | Variants vs baseline, fails on regression | Groq |
 | `python -m monitoring.drift` (`make drift`) | Replay fixed sample, trend chart, drift flags | Groq |
 | `make load` | Locust, 2 users, 3 minutes | Groq |
 
@@ -242,7 +243,7 @@ Drift report: _not yet run; after a week of nightly runs, link `reports/drift/dr
 | [nightly.yml](.github/workflows/nightly.yml) | daily 03:00 UTC | drift replay with persisted history |
 | [manual.yml](.github/workflows/manual.yml) | manual | load test, full regression matrix, promptfoo red team, Appium on an emulator, AWS upload + Athena |
 
-Setup: add `GROQ_API_KEY` and `GEMINI_API_KEY` as repository secrets (LLM jobs skip with a warning
+Setup: add `GROQ_API_KEY` as a repository secret (`GEMINI_API_KEY` optional; LLM jobs skip with a warning
 without them), and mark the `regression-gate` job as a **required status check** under
 Settings > Branches so a regression blocks merging. Dependencies, ONNX models and the Playwright browser are cached.
 HTML (pytest-html), JUnit and markdown reports are uploaded as artifacts.
@@ -290,6 +291,15 @@ These were found by the tests during development and fixed. They are real, not i
 - **Flaky timeout.** An agent test passed alone but failed under load: the test tool budget (0.3 s) was
   too close to real search latency (~0.25 s with reranking).
 - **Rounding in the pass rule.** "2 of 3 runs" is 0.667, which a 0.67 threshold rejected.
+- **A judge out of quota looked like a quality failure.** The first smoke run used Gemini 2.5 Flash as judge,
+  whose free tier allowed 20 requests a day. Most judge calls failed, and the faithfulness gate "failed" on
+  one or two scored answers. The runner now tracks a judge error rate and marks such runs **invalid**, the
+  client stops retrying once a daily quota is gone, and the judge moved to Qwen on Groq.
+- **Transient gateway errors.** Groq occasionally returned HTTP 522 (Cloudflare timeout), which the client did
+  not retry. All 5xx responses are now retried.
+- **Golden labels that were too narrow.** Two cases marked correct answers as retrieval or citation misses
+  because valid evidence (another section stating the same fact) was missing from the label. Both labels
+  were widened, with a note in the dataset saying why.
 
 ## Limitations
 

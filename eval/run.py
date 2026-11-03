@@ -70,6 +70,10 @@ def build_runner(
 
 
 def print_summary(report: EvalReport) -> None:
+    if not report.valid:
+        from eval.report import INVALID
+
+        print(f"\n{INVALID}")
     print(f"\nGates: {'PASSED' if report.gates_passed else 'FAILED'}")
     for g in report.gate_results:
         print(f"  {'ok  ' if g['passed'] else 'FAIL'} {g['metric']:<22} {g['value']:.3f}  ({g['op']} {g['limit']})")

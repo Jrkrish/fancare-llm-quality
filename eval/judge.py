@@ -13,11 +13,12 @@ from deepeval.models import DeepEvalBaseLLM
 from pydantic import BaseModel, ValidationError
 
 from app.config import Settings
-from app.llm import LLMClient
+from app.llm import LLMClient, QuotaExhausted
 
 
 def _extract_json(text: str):
-    text = text.strip()
+    # Reasoning models (e.g. Qwen3) may put their thinking before the JSON.
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     fenced = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL)
     if fenced:
         text = fenced.group(1).strip()
@@ -55,6 +56,7 @@ class JudgeLLM(DeepEvalBaseLLM):
         self.calls = 0
         self.prompt_tokens = 0
         self.completion_tokens = 0
+        self.exhausted: str | None = None  # set once the judge's daily quota runs out
         super().__init__(model)
 
     def load_model(self):
@@ -64,13 +66,20 @@ class JudgeLLM(DeepEvalBaseLLM):
         return f"{self.provider}/{self.model_id}"
 
     def generate(self, prompt: str, schema: type[BaseModel] | None = None):
+        # Circuit breaker: after a daily-quota error every further call would fail too, so fail fast.
+        if self.exhausted:
+            raise QuotaExhausted(self.exhausted)
         last_error = None
         for _ in range(2):  # one retry on unparseable output
             self.calls += 1
-            resp = self.model.chat(
-                [{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"} if schema else None,
-            )
+            try:
+                resp = self.model.chat(
+                    [{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"} if schema else None,
+                )
+            except QuotaExhausted as exc:
+                self.exhausted = f"judge quota exhausted: {exc}"[:300]
+                raise
             self.prompt_tokens += int(resp.usage.get("prompt_tokens") or 0)
             self.completion_tokens += int(resp.usage.get("completion_tokens") or 0)
             if schema is None:

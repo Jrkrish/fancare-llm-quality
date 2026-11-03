@@ -81,6 +81,11 @@ class EvalReport:
         return all(g["passed"] for g in self.gate_results)
 
     @property
+    def valid(self) -> bool:
+        """False when infrastructure or judge errors make the scores unrepresentative."""
+        return all(g["passed"] for g in self.gate_results if g.get("validity"))
+
+    @property
     def gate_failures(self) -> list[str]:
         return [f"{g['metric']}: {g['value']:.3f} (needs {g['op']} {g['limit']})" for g in self.gate_results if not g["passed"]]
 
@@ -236,9 +241,11 @@ class EvalRunner:
             value = summary["hallucination_rate"]
             gates.append({"metric": "hallucination_rate", "value": value, "op": "<=",
                           "limit": self.config.max_hallucination_rate, "passed": value <= self.config.max_hallucination_rate})
-        value = summary.get("error_rate", 0.0)
-        gates.append({"metric": "error_rate", "value": value, "op": "<=", "limit": self.config.max_error_rate,
-                      "passed": value <= self.config.max_error_rate})
+        # Validity gates: too many missing answers or missing judge scores make the averages above meaningless.
+        for metric in ("error_rate", "judge_error_rate"):
+            value = summary.get(metric, 0.0)
+            gates.append({"metric": metric, "value": value, "op": "<=", "limit": self.config.max_error_rate,
+                          "passed": value <= self.config.max_error_rate, "validity": True})
         return gates
 
 
@@ -267,6 +274,11 @@ def summarise(results: list[CaseResult]) -> dict[str, float]:
         summary["latency_p95_ms"] = _percentile(latencies, 0.95)
         summary["cost_usd_total"] = sum(run.reply.cost_usd for run in valid)
     summary["error_rate"] = (len(all_runs) - len(valid)) / len(all_runs) if all_runs else 0.0
+    # Judge measurements attempted vs failed (rate limits, quota, unparseable output). A judge metric that
+    # is legitimately not applicable (e.g. faithfulness of a refusal) is None without an error and not counted.
+    attempted = sum(1 for run in valid for m, v in run.scores.items() if m in JUDGE_CALLS_PER_METRIC and (v is not None or m in run.metric_errors))
+    failed = sum(1 for run in valid for m in run.metric_errors if m in JUDGE_CALLS_PER_METRIC)
+    summary["judge_error_rate"] = failed / attempted if attempted else 0.0
     summary["case_pass_rate"] = sum(r.passed for r in results) / len(results) if results else 0.0
     summary["unstable_cases"] = sum(bool(r.unstable) for r in results)
     summary["n_cases"] = len(results)
