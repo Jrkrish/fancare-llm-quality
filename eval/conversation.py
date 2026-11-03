@@ -158,7 +158,7 @@ def main(argv=None) -> int:
         from eval.judge import JudgeLLM
 
         cfg = load_eval_config("full")
-        judge = JudgeLLM(cfg.judge_provider, cfg.judge_model, cfg.judge_min_interval_s)
+        judge = JudgeLLM(cfg.judge_provider, cfg.judge_model, cfg.judge_min_interval_s, cfg.judge_max_tokens)
     runner = ConversationRunner(harness, args.runs, judge=judge)
     results = []
     for conv in load_conversations():

@@ -60,6 +60,9 @@ CITED = [{"chunk_id": "DOC-03:1", "doc_id": "DOC-03", "passage": "2.4 GHz only",
         ("HomeKit isn't listed; only Alexa and Google Home are [DOC-03:1].", CITED, "partial"),
         ("Installation labour is not covered by the warranty [DOC-03:1].", CITED, "answered"),
         ("I can't follow that request. I can help with Corvane ceiling fans.", [], "refused"),
+        # Typographic apostrophe, as gpt-oss writes it (misread as "answered" in an early smoke run).
+        ("I don’t have that information in the Corvane documentation.", [], "refused"),
+        ("CR2032 [DOC-03:1]. I don’t have the current price for a replacement remote in the documentation.", CITED, "partial"),
     ],
 )
 def test_classify_response(answer, citations, expected):

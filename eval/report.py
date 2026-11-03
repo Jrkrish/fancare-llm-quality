@@ -111,6 +111,10 @@ def render_markdown(report: EvalReport) -> str:
             lines.append(f"  - {f}")
         sample = r.valid_runs[0]
         lines.append(f"  - run 1 ({sample.response_class}): {sample.answer[:300].replace(chr(10), ' ')}")
+        for run in r.valid_runs:
+            for metric, items in run.judge_notes.items():
+                lines.append(f"  - run {run.run_index + 1} {metric}, not accepted by the judge:")
+                lines += [f"    - {item[:300]}" for item in items[:6]]
 
     unstable = [r for r in report.cases if r.unstable]
     lines += ["", f"## Unstable cases ({len(unstable)})", "", "Scores that changed between runs of the same question.", ""]

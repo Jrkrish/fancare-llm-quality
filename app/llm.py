@@ -95,6 +95,8 @@ class LLMClient:
         body = {"model": model, "messages": messages, "temperature": self.settings.llm_temperature}
         if tools:
             body["tools"] = tools
+        if self.settings.llm_max_tokens:
+            body["max_tokens"] = self.settings.llm_max_tokens
         if response_format:
             body["response_format"] = response_format
 
@@ -116,6 +118,8 @@ class LLMClient:
 
             if resp.status_code == 429 and _DAILY_QUOTA_RE.search(resp.text):
                 raise QuotaExhausted(f"HTTP 429 daily quota exhausted for {model}: {resp.text[:300]}")
+            if resp.status_code == 429 and "Request too large" in resp.text:
+                raise LLMError(f"HTTP 429 request exceeds the per-minute token limit, retrying cannot help: {resp.text[:300]}")
             # Rate limits and server-side errors (incl. Cloudflare 52x) are usually transient.
             if (resp.status_code == 429 or resp.status_code >= 500) and attempt < retries - 1:
                 time.sleep(retry_delay(resp, attempt))

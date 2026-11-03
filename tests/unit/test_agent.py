@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from app.agent import AgentUnavailable, normalize_citations
+from app.agent import NO_EVIDENCE_ANSWER, AgentUnavailable, normalize_citations
 from app.llm import LLMError
 from app.observability import TraceRecord
 from app.tools import ToolRecord
@@ -113,6 +113,20 @@ def test_tool_loop_is_capped(make_agent, settings):
     result = agent.chat("s1", "tell me about fans")
     assert result.answer == "done"
     assert agent.llm.requests[-1]["tools"] is None
+    assert "Do not call any tool" in agent.llm.requests[-1]["messages"][-1]["content"]
+
+
+def test_tool_call_after_budget_falls_back_to_no_evidence(make_agent, settings):
+    rejected = LLMError('groq: HTTP 400: {"error":{"message":"Tool choice is none, but model called a tool","code":"tool_use_failed"}}')
+    agent = make_agent([tool_call("search_docs", query="factory")] * settings.max_tool_rounds + [rejected])
+    result = agent.chat("s1", "Where are Corvane fans manufactured?")
+    assert result.answer == NO_EVIDENCE_ANSWER
+
+
+def test_other_errors_in_final_call_still_raise(make_agent, settings):
+    agent = make_agent([tool_call("search_docs", query="fan")] * settings.max_tool_rounds + [LLMError("groq: HTTP 500")])
+    with pytest.raises(AgentUnavailable):
+        agent.chat("s1", "tell me about fans")
 
 
 def test_llm_failure_raises_and_is_traced(make_agent, settings):

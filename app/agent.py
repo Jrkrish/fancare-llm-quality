@@ -20,6 +20,11 @@ _CITATION_GROUP_RE = re.compile(r"[\[【]([^\]】\n]*?DOC-\d{2}:\d+[^\]】\n]*?)
 _DOC_ID_RE = re.compile(r"DOC-\d{2}:\d+")
 BLOCKED_PLACEHOLDER = "[message blocked by guardrails]"
 EMPTY_ANSWER_FALLBACK = "Sorry, I couldn't put together an answer just now. Please try again."
+NO_EVIDENCE_ANSWER = "I don't have that information in the Corvane documentation."
+FINAL_ANSWER_NUDGE = (
+    "You have used all your tool calls. Do not call any tool. Answer now from the passages above, "
+    "or say you don't have that information."
+)
 
 
 def normalize_citations(text: str) -> str:
@@ -159,7 +164,14 @@ class Agent:
                 trace.tool_calls.append(record)
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": record.llm_payload()})
         # Tool budget used up: force a final answer without tools.
-        return self._llm_call(messages, trace, tools=None)
+        final = messages + [{"role": "system", "content": FINAL_ANSWER_NUDGE}]
+        try:
+            return self._llm_call(final, trace, tools=None)
+        except LLMError as exc:
+            # Some models (gpt-oss on Groq) still emit a tool call, which the provider rejects.
+            if "tool_use_failed" not in str(exc):
+                raise
+            return LLMResponse(NO_EVIDENCE_ANSWER, [], trace.provider, trace.model, {})
 
     def _llm_call(self, messages: list[dict], trace: TraceRecord, tools: list[dict] | None) -> LLMResponse:
         response = self.llm.chat(messages, tools=tools)

@@ -67,6 +67,8 @@ class Settings:
     llm_max_retries: int = field(default_factory=lambda: int(_env("LLM_MAX_RETRIES", "3")))
     # Minimum gap between LLM requests; e.g. 2.0 keeps a client under 30 requests/minute.
     llm_min_interval_s: float = field(default_factory=lambda: float(_env("LLM_MIN_INTERVAL_S", "0")))
+    # Cap on output tokens per request (0 = provider default). Groq reserves this against tokens-per-minute.
+    llm_max_tokens: int = field(default_factory=lambda: int(_env("LLM_MAX_TOKENS", "0")))
     max_tool_rounds: int = 4
 
     # Prompt

@@ -22,6 +22,7 @@ class EvalConfig:
     judge_provider: str
     judge_model: str
     judge_min_interval_s: float
+    judge_max_tokens: int
     judge_metrics: list[str]
     thresholds: dict[str, float]
     hallucination_faithfulness_below: float
@@ -48,6 +49,7 @@ def load_eval_config(profile: str = "full", path: Path = CONFIG_PATH, **override
         judge_provider=os.getenv("JUDGE_PROVIDER") or raw["judge"]["provider"],
         judge_model=os.getenv("JUDGE_MODEL") or raw["judge"]["model"],
         judge_min_interval_s=raw["judge"]["min_interval_s"],
+        judge_max_tokens=raw["judge"].get("max_tokens", 2048),
         judge_metrics=list(prof.get("judge_metrics", raw["metrics"]["judge_metrics"])),
         thresholds=dict(raw["thresholds"]),
         hallucination_faithfulness_below=raw["hallucination"]["faithfulness_below"],

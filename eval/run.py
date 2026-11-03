@@ -65,7 +65,7 @@ def build_runner(
     judge = None
     if config.judge_metrics:
         from eval.judge import JudgeLLM
-        judge = JudgeLLM(config.judge_provider, config.judge_model, config.judge_min_interval_s)
+        judge = JudgeLLM(config.judge_provider, config.judge_model, config.judge_min_interval_s, config.judge_max_tokens)
     return EvalRunner(config, AgentTarget(settings, retriever), judge), cases
 
 

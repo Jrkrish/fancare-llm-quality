@@ -96,3 +96,32 @@ def test_judge_strips_reasoning_before_json(monkeypatch):
     judge.model = type("C", (), {"chat": lambda self, *a, **k: LLMResponse(
         '<think>maybe {"verdict": "no"}?</think>{"verdict": "yes"}', [], "f", "f", {})})()
     assert judge.generate("p", schema=Out).verdict == "yes"
+
+
+def test_oversized_request_is_not_retried(client, monkeypatch):
+    too_large = '{"error": {"message": "Request too large for model `qwen` on output tokens per minute (OTPM): Limit 6000"}}'
+    script(monkeypatch, [resp(429, too_large), resp(200, OK)])
+    with pytest.raises(LLMError, match="retrying cannot help"):
+        client.chat([{"role": "user", "content": "x"}])
+    assert sleeps == []
+
+
+def test_max_tokens_is_sent_only_when_set(client, monkeypatch):
+    bodies = []
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: bodies.append(k["json"]) or resp(200, OK))
+    client.chat([{"role": "user", "content": "x"}])
+    client.settings = replace(client.settings, llm_max_tokens=2048)
+    client.chat([{"role": "user", "content": "x"}])
+    assert "max_tokens" not in bodies[0] and bodies[1]["max_tokens"] == 2048
+
+
+def test_judge_keeps_rejected_claims_with_reasons():
+    from types import SimpleNamespace
+
+    from eval.metrics import rejected_items
+
+    metric = SimpleNamespace(claims=["Motor is covered 5 years.", "Coverage ended June 2024."], verdicts=[
+        SimpleNamespace(verdict="yes", reason=None),
+        SimpleNamespace(verdict="borderline", reason="the end date is inferred, not stated"),
+    ])
+    assert rejected_items(metric) == ["[borderline] Coverage ended June 2024. -- the end date is inferred, not stated"]

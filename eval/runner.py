@@ -9,7 +9,7 @@ from deepeval.test_case import LLMTestCase
 
 from eval.config import EvalConfig
 from eval.dataset import GoldenCase
-from eval.metrics import DETERMINISTIC_METRICS, build_judge_metric, classify_response
+from eval.metrics import DETERMINISTIC_METRICS, build_judge_metric, classify_response, rejected_items
 from eval.targets import ChatTarget, Reply
 
 # Approximate LLM calls per scored run, used only for the up-front budget estimate.
@@ -26,6 +26,8 @@ class RunScore:
     hallucinated: bool
     hallucination_reasons: list[str]
     reply: Reply
+    # Claims/statements a judge metric did not accept, e.g. {"faithfulness": ["[no] claim -- reason"]}.
+    judge_notes: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def errored(self) -> bool:
@@ -134,11 +136,12 @@ class EvalRunner:
         )
         scores: dict[str, float | None] = {}
         errors: dict[str, str] = {}
+        notes: dict[str, list[str]] = {}
         for name in self.metrics_for(case):
             if name == "no_hallucination":
                 continue
             try:
-                scores[name] = self._score_metric(name, test_case, response_class)
+                scores[name] = self._score_metric(name, test_case, response_class, notes)
             except Exception as exc:  # noqa: BLE001 - a judge failure must not abort the whole run
                 scores[name], errors[name] = None, f"{type(exc).__name__}: {str(exc)[:200]}"
 
@@ -151,9 +154,9 @@ class EvalRunner:
         if faith is not None and faith < self.config.hallucination_faithfulness_below:
             reasons.append(f"faithfulness {faith:.2f}")
         scores["no_hallucination"] = 0.0 if reasons else 1.0
-        return RunScore(run_index, reply.answer, response_class, scores, errors, bool(reasons), reasons, reply)
+        return RunScore(run_index, reply.answer, response_class, scores, errors, bool(reasons), reasons, reply, notes)
 
-    def _score_metric(self, name: str, test_case: LLMTestCase, response_class: str) -> float | None:
+    def _score_metric(self, name: str, test_case: LLMTestCase, response_class: str, notes: dict) -> float | None:
         if name in DETERMINISTIC_METRICS:
             return DETERMINISTIC_METRICS[name](self.config.thresholds[name]).measure(test_case)
         has_context = bool(test_case.retrieval_context)
@@ -167,7 +170,11 @@ class EvalRunner:
         if name.startswith("contextual_") and not has_context:
             return 0.0  # nothing retrieved: no gold evidence reached the model
         metric = build_judge_metric(name, self.config.thresholds[name], self.judge)
-        return metric.measure(test_case)
+        score = metric.measure(test_case)
+        rejected = rejected_items(metric)
+        if rejected:
+            notes[name] = rejected
+        return score
 
     # ----------------------------------------------------------- aggregation
 

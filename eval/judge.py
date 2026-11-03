@@ -41,7 +41,7 @@ def _coerce(schema: type[BaseModel], data):
 
 
 class JudgeLLM(DeepEvalBaseLLM):
-    def __init__(self, provider: str, model: str, min_interval_s: float = 0.0):
+    def __init__(self, provider: str, model: str, min_interval_s: float = 0.0, max_tokens: int = 2048):
         self.provider = provider
         self.model_id = model
         self.settings = replace(
@@ -52,6 +52,7 @@ class JudgeLLM(DeepEvalBaseLLM):
             llm_temperature=0.0,
             llm_min_interval_s=min_interval_s,
             llm_max_retries=5,
+            llm_max_tokens=max_tokens,
         )
         self.calls = 0
         self.prompt_tokens = 0

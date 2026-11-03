@@ -30,6 +30,8 @@ JUDGE_METRICS = ("faithfulness", "answer_relevancy", "contextual_precision", "co
 # often it agrees with human labels.
 GAP_PATTERNS = [
     r"\bI (do not|don'?t) have (that|this|any|enough|specific)?\s*(information|details|data)\b",
+    # "I don't have the current price for X in the documentation"
+    r"\bI (do not|don'?t) have\b[^.\n]{0,80}\b(in|from) the (corvane )?(documentation|docs|documents|passages)\b",
     r"\b(is|are|was)? ?(not|n't|isn'?t|aren'?t)\s+(mentioned|listed|documented|specified|stated|described)\b",
     # "not covered" alone is usually a policy fact ("labour is not covered"), so require a docs reference.
     r"\bnot covered (in|by) the (corvane )?(documentation|docs|documents|passages|information)\b",
@@ -44,8 +46,13 @@ GAP_PATTERNS = [
 _GAP_RE = re.compile("|".join(GAP_PATTERNS), re.IGNORECASE)
 
 
+# LLMs often write typographic apostrophes, hyphens and spaces ("don’t", "non‑smart").
+_PUNCT = str.maketrans({"‘": "'", "’": "'", "ʼ": "'", "‐": "-", "‑": "-",
+                        " ": " ", " ": " ", " ": " "})
+
+
 def acknowledges_gap(answer: str) -> bool:
-    return bool(_GAP_RE.search(answer))
+    return bool(_GAP_RE.search(answer.translate(_PUNCT)))
 
 
 def classify_response(answer: str, citations: list[dict]) -> str:
@@ -130,6 +137,23 @@ class RetrievalRecallMetric(_DeterministicMetric):
 DETERMINISTIC_METRICS = {
     m.name: m for m in (RefusalCorrectnessMetric, CitationCorrectnessMetric, RetrievalRecallMetric)
 }
+
+
+def rejected_items(metric: BaseMetric) -> list[str]:
+    """Claims (faithfulness) or statements (relevancy) the judge did not mark 'yes', with its reason.
+
+    DeepEval keeps these on the metric after measure(), so collecting them costs no extra judge calls.
+    """
+    items = getattr(metric, "claims", None) or getattr(metric, "statements", None) or []
+    out = []
+    for i, v in enumerate(getattr(metric, "verdicts", None) or []):
+        verdict = str(getattr(v, "verdict", "")).lower()
+        if verdict == "yes":
+            continue
+        text = items[i] if i < len(items) and isinstance(items[i], str) else ""
+        reason = getattr(v, "reason", None)
+        out.append(f"[{verdict}] {text}" + (f" -- {reason}" if reason else ""))
+    return out
 
 
 def build_judge_metric(name: str, threshold: float, judge) -> BaseMetric:
