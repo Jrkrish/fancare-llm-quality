@@ -1,0 +1,6 @@
+# Quarantined tests: one node id (or prefix) per line. They still run and are reported,
+# but cannot fail the build. Add a reason and an owner, and remove the line once fixed.
+# Use `python -m tools.flaky_report` to find candidates.
+#
+# Example:
+# tests/conversation/test_conversation.py::TestConversation::test_conversation[CV-03]  # flips on clarifying question; owner: you

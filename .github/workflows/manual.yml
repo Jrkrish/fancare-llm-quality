@@ -1,0 +1,135 @@
+name: Manual jobs (load, regression matrix, promptfoo, mobile, AWS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which job to run
+        type: choice
+        options: [load, regression-matrix, promptfoo, mobile, aws]
+        default: load
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  load:
+    if: inputs.job == 'load'
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Start the app
+        run: |
+          nohup uvicorn app.main:app --port 8000 > app.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf localhost:8000/health && break; sleep 2; done
+          echo "LOAD_START=$(date -u +%Y-%m-%dT%H:%M:%S)" >> "$GITHUB_ENV"
+      - name: Locust (2 users, 3 minutes; free tiers rate-limit hard)
+        run: |
+          mkdir -p reports/load
+          locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 2 -r 1 -t 3m \
+            --csv reports/load/run --html reports/load/report.html
+          python -m tests.load.summarize reports/load/run_stats.csv --since "$LOAD_START"
+          cat reports/load/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: load-report, path: "reports/load/"}
+
+  regression-matrix:
+    if: inputs.job == 'regression-matrix'
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LLM_MIN_INTERVAL_S: "2.0"
+      LLM_MAX_RETRIES: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Prompts v1/v2/v3 x two models vs baseline
+        run: >
+          python -m eval.regression --profile smoke --prompts v1,v2,v3
+          --models groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b
+      - if: always()
+        run: cat reports/regression/comparison.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: regression-matrix, path: "reports/"}
+
+  promptfoo:
+    if: inputs.job == 'promptfoo'
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Start the app
+        run: |
+          nohup uvicorn app.main:app --port 8000 > app.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf localhost:8000/health && break; sleep 2; done
+      - name: Static safety checks
+        run: npx --yes promptfoo@0.125.1 eval -c redteam/promptfoo-static.yaml -o reports/promptfoo/static.json
+        continue-on-error: true
+      - name: Red team
+        run: npx --yes promptfoo@0.125.1 redteam run -c redteam/promptfooconfig.yaml -o reports/promptfoo/redteam.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: promptfoo, path: "reports/promptfoo/"}
+
+  mobile:
+    # Framework skeleton on an emulator. BLE / Wi-Fi provisioning needs real hardware.
+    if: inputs.job == 'mobile'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Install Appium and test deps
+        run: |
+          npm install -g appium@2 && appium driver install uiautomator2
+          pip install pytest -r requirements-mobile.txt
+          curl -sSL -o ApiDemos-debug.apk https://github.com/appium/android-apidemos/releases/download/v6.0.18/ApiDemos-debug.apk
+      - name: Run on an Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          APPIUM_SERVER_URL: http://127.0.0.1:4723
+          ANDROID_APK: ${{ github.workspace }}/ApiDemos-debug.apk
+        with:
+          api-level: 34
+          arch: x86_64
+          script: |
+            (appium > appium.log 2>&1 &) ; sleep 10 ; pytest tests/mobile -v
+
+  aws:
+    if: inputs.job == 'aws'
+    runs-on: ubuntu-latest
+    env:
+      REPORTS_BUCKET: ${{ secrets.REPORTS_BUCKET }}
+      ATHENA_DATABASE: ${{ secrets.ATHENA_DATABASE }}
+      ATHENA_OUTPUT: ${{ secrets.ATHENA_OUTPUT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements-aws.txt
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with: {name: eval-reports, path: "reports/"}
+      - run: python -m aws.upload_reports
+      - run: python -m aws.run_athena_query aws/athena/eval_trends.sql

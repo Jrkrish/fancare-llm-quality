@@ -1,0 +1,77 @@
+# RAG eval configuration.
+# Precedence: CLI flags / env vars > [profiles.<name>] > top-level sections.
+
+[run]
+dataset = "eval/datasets/golden.json"
+runs_per_case = 3          # every case is asked N times, each in a fresh session
+min_case_pass_rate = 0.66  # a case passes a metric if at least this share of its runs pass (0.66 = 2 of 3)
+unstable_std = 0.15        # flag a case whose score std-dev across runs exceeds this
+cases_per_category = 0     # 0 = all cases; K > 0 = first K cases of each category
+max_error_rate = 0.10      # share of runs allowed to fail for infrastructure reasons (rate limits, timeouts)
+
+[judge]
+# Use a different model family from the system under test to limit self-preference bias.
+# Env overrides: JUDGE_PROVIDER, JUDGE_MODEL.
+provider = "gemini"
+model = "gemini-2.5-flash"
+min_interval_s = 4.0       # spacing between judge requests (free-tier RPM)
+
+# Per-run pass thresholds (score >= threshold).
+[thresholds]
+faithfulness = 0.7
+answer_relevancy = 0.7
+contextual_precision = 0.6
+contextual_recall = 0.6
+citation_correctness = 0.6
+refusal_correctness = 1.0
+retrieval_recall = 0.5
+no_hallucination = 1.0
+
+# A run counts as a hallucination if it answers an unanswerable question, cites a
+# chunk that does not exist, or scores below this faithfulness.
+[hallucination]
+faithfulness_below = 0.5
+
+# Suite-level gates on the mean score across cases. These are starting targets:
+# recalibrate them from your first baseline run, never from guesses.
+[gates]
+faithfulness = 0.75
+answer_relevancy = 0.75
+contextual_precision = 0.6
+contextual_recall = 0.6
+citation_correctness = 0.6
+refusal_correctness = 0.8
+retrieval_recall = 0.6
+max_hallucination_rate = 0.15
+
+# Regression gate: largest allowed drop of a suite mean versus the stored baseline
+# (for hallucination_rate: largest allowed increase).
+[regression]
+faithfulness = 0.05
+answer_relevancy = 0.05
+contextual_precision = 0.05
+contextual_recall = 0.05
+citation_correctness = 0.05
+refusal_correctness = 0.05
+retrieval_recall = 0.05
+hallucination_rate = 0.05
+
+[metrics]
+# LLM-judged metrics (DeepEval). Deterministic metrics always run.
+judge_metrics = ["faithfulness", "answer_relevancy", "contextual_precision", "contextual_recall"]
+
+# Small, cheap run for every push: 2 cases per category, 2 runs, two judge metrics.
+[profiles.smoke]
+runs_per_case = 2
+cases_per_category = 2
+judge_metrics = ["faithfulness", "answer_relevancy"]
+
+# Deterministic metrics only: no judge calls at all.
+[profiles.nojudge]
+runs_per_case = 3
+cases_per_category = 0
+judge_metrics = []
+
+[profiles.full]
+runs_per_case = 3
+cases_per_category = 0

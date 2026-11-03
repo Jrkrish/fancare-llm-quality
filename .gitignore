@@ -1,0 +1,26 @@
+# secrets
+.env
+
+# local databases and logs
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+logs/
+
+# generated reports, model caches, tool state
+reports/
+.cache/
+.deepeval/
+node_modules/
+test-results/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# editor settings
+.vscode/

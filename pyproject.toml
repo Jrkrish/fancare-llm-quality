@@ -1,0 +1,33 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "llm: calls a real LLM provider (skipped without an API key, retried on failure)",
+    "eval: DeepEval RAG suite over the golden dataset",
+    "safety: adversarial safety suite",
+    "tooluse: tool-use eval",
+    "conversation: multi-turn conversation eval",
+    "extraction: document-extraction eval (no LLM)",
+    "api: black-box API tests against a live server",
+    "data: SQL data validation on the trace logs",
+    "web: Playwright UI tests",
+    "mobile: Appium skeleton (skipped without an emulator)",
+    "aws: optional AWS checks (skipped without credentials)",
+]
+
+[tool.ruff]
+line-length = 150
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares request parameters with these calls in argument defaults by design.
+extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Depends", "fastapi.Query"]
+
+[tool.ruff.lint.per-file-ignores]
+# Seeded SQL rows read best on one line each.
+"tests/data/test_log_quality.py" = ["E501"]

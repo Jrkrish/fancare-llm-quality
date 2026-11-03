@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "description": "Multi-turn conversations (5-8 turns). Each user turn has deterministic checks on the assistant's reply. judge_criteria is used by DeepEval's ConversationalGEval when a judge is enabled.",
+  "conversations": [
+    {"id": "CV-01", "title": "Context retention", "judge_criteria": "The assistant remembers facts the user stated earlier (their fan model) and uses them in later answers without asking again.",
+     "turns": [
+       {"user": "Hi, I have a SkyWhirl 52.", "checks": {}},
+       {"user": "How do I pair the remote with it?", "checks": {"must_contain_any": ["Speed 1", "speed 1"]}},
+       {"user": "And how many phones can pair over Bluetooth?", "checks": {"must_contain_any": ["4", "four"]}},
+       {"user": "Which fan model did I tell you I have?", "checks": {"must_contain_any": ["SkyWhirl 52", "SW52"]}},
+       {"user": "What blade span is that model?", "checks": {"must_contain_any": ["52"]}},
+       {"user": "Thanks, that's all.", "checks": {}}
+     ]},
+    {"id": "CV-02", "title": "Topic switching", "judge_criteria": "The assistant handles switches between orders, warranty and troubleshooting, and correctly returns to the earlier order topic when asked.",
+     "turns": [
+       {"user": "Where is my order ORD-10001?", "checks": {"expect_tools": ["get_order_status"], "must_contain_any": ["shipped"]}},
+       {"user": "Unrelated question: what does error E7 mean?", "checks": {"must_contain_any": ["firmware"]}},
+       {"user": "Also, is the motor on HU42-2502-00031 still under warranty?", "checks": {"expect_tools": ["check_warranty"], "must_contain_any": ["2030", "yes", "covered"]}},
+       {"user": "Going back to my order, when is it expected to arrive?", "checks": {"must_contain_any": ["2026-11-05", "November 5", "5 November", "Nov 5", "Nov. 5"]}},
+       {"user": "Which carrier is delivering it?", "checks": {"must_contain_any": ["UPS"]}}
+     ]},
+    {"id": "CV-03", "title": "Ambiguous follow-ups", "judge_criteria": "When the user's message is ambiguous, the assistant asks a short clarifying question instead of guessing, then gives a specific answer once it has enough information.",
+     "turns": [
+       {"user": "My fan is showing an error.", "checks": {"expect_question": true}},
+       {"user": "The light is blinking red.", "checks": {"expect_question": true, "must_contain_any": ["how many", "number of"]}},
+       {"user": "Four times, then it pauses.", "checks": {"must_contain_any": ["E4", "Wi-Fi module"]}},
+       {"user": "And if that doesn't fix it?", "checks": {"must_contain_any": ["receiver", "support", "ticket"]}},
+       {"user": "Would that be covered?", "checks": {"must_contain_any": ["purchase", "serial", "when did you buy", "bought"]}}
+     ]},
+    {"id": "CV-04", "title": "Contradicting the user", "judge_criteria": "When the user states something that contradicts the documentation, the assistant politely corrects them with the documented fact instead of agreeing.",
+     "turns": [
+       {"user": "My fan supports 5 GHz Wi-Fi, right? I'm sure the box said so.", "checks": {"must_contain_any": ["2.4"], "must_not_match": ["\\byes\\b[^.]{0,30}5 ?GHz"]}},
+       {"user": "I'm pretty sure the motor warranty is lifetime.", "checks": {"must_contain_any": ["5 years", "3 years", "five years", "three years"], "must_not_match": ["\\b(yes|correct|that's right)\\b[^.]{0,30}lifetime"]}},
+       {"user": "The remote takes AA batteries, I'll go buy some.", "checks": {"must_contain_any": ["CR2032"]}},
+       {"user": "My electrician says a dimmer switch is fine for speed control.", "checks": {"must_contain_any": ["on/off", "not", "don't", "do not"], "must_not_match": ["dimmer (switch )?is fine"]}},
+       {"user": "OK, thanks for clearing that up.", "checks": {}}
+     ]},
+    {"id": "CV-05", "title": "User frustration", "judge_criteria": "The assistant acknowledges the user's frustration briefly and sincerely, stays calm and professional, and always offers a concrete next step.",
+     "turns": [
+       {"user": "This is the THIRD time I'm asking. My fan keeps going offline!!!", "checks": {"must_contain_any": ["sorry", "understand", "frustrat"], "must_contain_any_2": ["breaker", "router", "30 seconds", "2.4"]}},
+       {"user": "That didn't work. This product is garbage.", "checks": {"must_contain_any": ["sorry", "understand", "frustrat"]}},
+       {"user": "Just give me a refund!", "checks": {"must_contain_any": ["order ID", "order number", "30 days", "ORD-"]}},
+       {"user": "It's ORD-10006.", "checks": {"expect_tools": ["get_order_status"], "must_contain_any": ["30 days", "warranty", "delivered"]}},
+       {"user": "Fine. Open a ticket then.", "checks": {"expect_tools": ["create_support_ticket"], "must_contain_any": ["TKT-"]}},
+       {"user": "Thanks.", "checks": {}}
+     ]},
+    {"id": "CV-06", "title": "Long-range retention across switches", "judge_criteria": "Across eight turns and several topic changes, the assistant keeps track of the order the user mentioned at the start and answers follow-ups about it correctly.",
+     "turns": [
+       {"user": "My order number is ORD-10003.", "checks": {}},
+       {"user": "What's its status?", "checks": {"expect_tools": ["get_order_status"], "must_contain_any": ["delivered"]}},
+       {"user": "How do I clean an outdoor fan?", "checks": {"must_contain_any": ["soap", "damp cloth"]}},
+       {"user": "What downrod do I need for a 12 ft ceiling?", "checks": {"must_contain_any": ["36"]}},
+       {"user": "Which product was in my order?", "checks": {"must_contain_any": ["TB60", "TerraBreeze 60"]}},
+       {"user": "Can that model be installed where rain reaches it?", "checks": {"must_contain_any": ["yes", "wet-rated", "wet rated"]}},
+       {"user": "When was it delivered?", "checks": {"must_contain_any": ["2026-10-15", "October 15", "15 October", "Oct 15", "Oct. 15"]}},
+       {"user": "Thanks for your help.", "checks": {}}
+     ]}
+  ]
+}

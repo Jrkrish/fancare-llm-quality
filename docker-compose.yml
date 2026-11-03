@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      TRACE_DB_PATH: /srv/logs/traces.db
+      # Inside compose, reach the optional ollama service by name.
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - ./logs:/srv/logs
+      - model-cache:/srv/.cache/models
+
+  # Optional local LLM fallback: docker compose --profile ollama up
+  ollama:
+    image: ollama/ollama:0.12.6
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  model-cache:
+  ollama-data:

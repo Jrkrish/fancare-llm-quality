@@ -1,0 +1,5 @@
+# Keep LF everywhere so files are identical on Windows and on Linux CI runners.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary

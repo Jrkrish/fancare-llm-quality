@@ -1,0 +1,9 @@
+[
+  {"serial_no": "SW52-2403-00117", "model": "SW52", "purchase_date": "2024-04-10", "registered_within_60_days": true, "commercial_use": false, "void_reason": null},
+  {"serial_no": "HU42-2502-00031", "model": "HU42", "purchase_date": "2025-03-01", "registered_within_60_days": true, "commercial_use": false, "void_reason": null},
+  {"serial_no": "TB60-2506-00208", "model": "TB60", "purchase_date": "2025-07-15", "registered_within_60_days": false, "commercial_use": false, "void_reason": null},
+  {"serial_no": "AL36-2203-00450", "model": "AL36", "purchase_date": "2022-05-01", "registered_within_60_days": false, "commercial_use": false, "void_reason": null},
+  {"serial_no": "SW60-2508-00012", "model": "SW60", "purchase_date": "2025-09-01", "registered_within_60_days": true, "commercial_use": true, "void_reason": null},
+  {"serial_no": "LX72-2509-00077", "model": "LX72", "purchase_date": "2025-10-20", "registered_within_60_days": true, "commercial_use": false, "void_reason": "receiver module opened"},
+  {"serial_no": "MN30-2601-00005", "model": "MN30", "purchase_date": "2026-02-14", "registered_within_60_days": false, "commercial_use": false, "void_reason": null}
+]

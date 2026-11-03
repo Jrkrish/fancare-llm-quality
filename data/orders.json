@@ -1,0 +1,8 @@
+[
+  {"order_id": "ORD-10001", "status": "shipped", "product_id": "SW52", "placed_on": "2026-10-28", "carrier": "UPS", "tracking_id": "UPS-7Q4K92M1", "estimated_delivery": "2026-11-05", "delivered_on": null},
+  {"order_id": "ORD-10002", "status": "processing", "product_id": "HU42", "placed_on": "2026-11-02", "carrier": null, "tracking_id": null, "estimated_delivery": "2026-11-10", "delivered_on": null},
+  {"order_id": "ORD-10003", "status": "delivered", "product_id": "TB60", "placed_on": "2026-10-10", "carrier": "FedEx", "tracking_id": "FDX-3HB81KQ", "estimated_delivery": "2026-10-15", "delivered_on": "2026-10-15"},
+  {"order_id": "ORD-10004", "status": "cancelled", "product_id": "AL36", "placed_on": "2026-09-20", "carrier": null, "tracking_id": null, "estimated_delivery": null, "delivered_on": null},
+  {"order_id": "ORD-10005", "status": "out_for_delivery", "product_id": "LX72", "placed_on": "2026-10-30", "carrier": "FedEx", "tracking_id": "FDX-9TR22PZ", "estimated_delivery": "2026-11-03", "delivered_on": null},
+  {"order_id": "ORD-10006", "status": "delivered", "product_id": "SW44", "placed_on": "2026-09-25", "carrier": "UPS", "tracking_id": "UPS-2M8XW41C", "estimated_delivery": "2026-10-01", "delivered_on": "2026-10-01"}
+]

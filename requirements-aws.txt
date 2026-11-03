@@ -1,0 +1,2 @@
+# Optional: S3 upload and Athena query (aws/). Skipped without credentials.
+boto3==1.43.123

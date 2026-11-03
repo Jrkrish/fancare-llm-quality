@@ -1,0 +1,50 @@
+name: Nightly drift monitoring
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC every day
+  workflow_dispatch:
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LLM_MIN_INTERVAL_S: "2.0"
+      LLM_MAX_RETRIES: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # The drift history must accumulate across runs: restore the newest copy from the cache.
+      - name: Restore drift history
+        uses: actions/cache/restore@v4
+        with:
+          path: reports/drift/drift_history.csv
+          key: drift-history-${{ github.run_id }}
+          restore-keys: drift-history-
+      - name: Replay fixed sample and check for drift
+        id: drift
+        run: python -m monitoring.drift
+        continue-on-error: true
+      - name: Save drift history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: reports/drift/drift_history.csv
+          key: drift-history-${{ github.run_id }}
+      - name: Publish drift report
+        if: always()
+        run: |
+          [ -f reports/drift/drift_report.md ] && cat reports/drift/drift_report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drift-report
+          path: reports/drift/
+      - name: Fail the run when drift was detected
+        if: steps.drift.outcome == 'failure'
+        run: exit 1

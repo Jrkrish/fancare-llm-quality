@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FanCare Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>FanCare Assistant</h1>
+    <div class="session">
+      Session <code data-testid="session-id"></code>
+      <button type="button" data-testid="new-session">New chat</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="messages" data-testid="messages" aria-live="polite"></div>
+    <div class="error" data-testid="error-banner" role="alert" hidden></div>
+
+    <form data-testid="chat-form">
+      <input data-testid="message-input" name="message" autocomplete="off" maxlength="2000"
+             placeholder="Ask about setup, error codes, orders, warranty..." required>
+      <button type="submit" data-testid="send-button">Send</button>
+    </form>
+
+    <form class="upload" data-testid="upload-form">
+      <label>Warranty card or invoice (PDF, PNG, JPEG)
+        <input type="file" data-testid="upload-input" accept="application/pdf,image/png,image/jpeg">
+      </label>
+      <button type="submit" data-testid="upload-button">Upload</button>
+      <pre data-testid="upload-result" hidden></pre>
+    </form>
+
+    <details class="settings">
+      <summary>Settings</summary>
+      <label>API key <input data-testid="api-key" value="dev-local-key"></label>
+    </details>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

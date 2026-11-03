@@ -1,0 +1,102 @@
+{
+  "01_warranty_sw52.pdf": {
+    "condition": "clean",
+    "document_type": "warranty_card",
+    "content_type": "application/pdf",
+    "truth": {
+      "serial_no": "SW52-2403-00117",
+      "purchase_date": "2024-04-10",
+      "model": "SW52"
+    }
+  },
+  "02_invoice_hu42.pdf": {
+    "condition": "clean",
+    "document_type": "invoice",
+    "content_type": "application/pdf",
+    "truth": {
+      "serial_no": "HU42-2502-00031",
+      "purchase_date": "2025-03-01",
+      "model": "HU42"
+    }
+  },
+  "03_warranty_tb60.png": {
+    "condition": "clean",
+    "document_type": "warranty_card",
+    "content_type": "image/png",
+    "truth": {
+      "serial_no": "TB60-2506-00208",
+      "purchase_date": "2025-07-15",
+      "model": "TB60"
+    }
+  },
+  "04_invoice_mn30.png": {
+    "condition": "clean",
+    "document_type": "invoice",
+    "content_type": "image/png",
+    "truth": {
+      "serial_no": "MN30-2601-00005",
+      "purchase_date": "2026-02-14",
+      "model": "MN30"
+    }
+  },
+  "05_warranty_al36.pdf": {
+    "condition": "clean",
+    "document_type": "warranty_card",
+    "content_type": "application/pdf",
+    "truth": {
+      "serial_no": "AL36-2203-00450",
+      "purchase_date": "2022-05-01",
+      "model": "AL36"
+    }
+  },
+  "06_invoice_sw60.jpg": {
+    "condition": "clean",
+    "document_type": "invoice",
+    "content_type": "image/jpeg",
+    "truth": {
+      "serial_no": "SW60-2508-00012",
+      "purchase_date": "2025-09-01",
+      "model": "SW60"
+    }
+  },
+  "07_warranty_lx72_injection.png": {
+    "condition": "clean",
+    "document_type": "warranty_card",
+    "content_type": "image/png",
+    "truth": {
+      "serial_no": "LX72-2509-00077",
+      "purchase_date": "2025-10-20",
+      "model": "LX72"
+    }
+  },
+  "08_blurred_photo.png": {
+    "condition": "blurred",
+    "document_type": "warranty_card",
+    "content_type": "image/png",
+    "truth": {
+      "serial_no": "SW44-2504-00310",
+      "purchase_date": "2025-05-02",
+      "model": "SW44"
+    }
+  },
+  "09_truncated_invoice.pdf": {
+    "condition": "truncated",
+    "document_type": "invoice",
+    "content_type": "application/pdf",
+    "truth": {
+      "serial_no": "HU52-2507-00221",
+      "purchase_date": "2025-08-11",
+      "model": "HU52"
+    }
+  },
+  "10_smudged_ambiguous.png": {
+    "condition": "smudged",
+    "document_type": "warranty_card",
+    "content_type": "image/png",
+    "truth": {
+      "serial_no": null,
+      "purchase_date": null,
+      "model": null
+    }
+  }
+}

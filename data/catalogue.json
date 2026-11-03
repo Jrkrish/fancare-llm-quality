@@ -1,0 +1,14 @@
+[
+  {"product_id": "MN30", "name": "Corvane Mini 30", "blade_span_in": 30, "price_usd": 99, "motor": "DC", "location_rating": "dry", "room_sqft_min": 0, "room_sqft_max": 75, "features": ["smart", "remote", "dc_motor", "flush_mount"]},
+  {"product_id": "AL36", "name": "Corvane AeroLite 36", "blade_span_in": 36, "price_usd": 129, "motor": "DC", "location_rating": "dry", "room_sqft_min": 0, "room_sqft_max": 75, "features": ["smart", "remote", "dc_motor", "light"]},
+  {"product_id": "AL44", "name": "Corvane AeroLite 44", "blade_span_in": 44, "price_usd": 159, "motor": "DC", "location_rating": "dry", "room_sqft_min": 76, "room_sqft_max": 144, "features": ["smart", "remote", "dc_motor", "light"]},
+  {"product_id": "HU42", "name": "Corvane Hush 42", "blade_span_in": 42, "price_usd": 219, "motor": "DC", "location_rating": "dry", "room_sqft_min": 76, "room_sqft_max": 144, "features": ["smart", "remote", "dc_motor", "quiet"]},
+  {"product_id": "HU52", "name": "Corvane Hush 52", "blade_span_in": 52, "price_usd": 279, "motor": "DC", "location_rating": "dry", "room_sqft_min": 145, "room_sqft_max": 225, "features": ["smart", "remote", "dc_motor", "quiet", "light"]},
+  {"product_id": "SW44", "name": "Corvane SkyWhirl 44", "blade_span_in": 44, "price_usd": 189, "motor": "DC", "location_rating": "dry", "room_sqft_min": 76, "room_sqft_max": 144, "features": ["smart", "remote", "dc_motor", "light", "flush_mount"]},
+  {"product_id": "SW52", "name": "Corvane SkyWhirl 52", "blade_span_in": 52, "price_usd": 239, "motor": "DC", "location_rating": "dry", "room_sqft_min": 145, "room_sqft_max": 225, "features": ["smart", "remote", "dc_motor", "light"]},
+  {"product_id": "SW60", "name": "Corvane SkyWhirl 60", "blade_span_in": 60, "price_usd": 299, "motor": "DC", "location_rating": "dry", "room_sqft_min": 226, "room_sqft_max": 400, "features": ["smart", "remote", "dc_motor", "light"]},
+  {"product_id": "TB52", "name": "Corvane TerraBreeze 52", "blade_span_in": 52, "price_usd": 259, "motor": "DC", "location_rating": "wet", "room_sqft_min": 145, "room_sqft_max": 225, "features": ["smart", "remote", "dc_motor", "outdoor"]},
+  {"product_id": "TB60", "name": "Corvane TerraBreeze 60", "blade_span_in": 60, "price_usd": 329, "motor": "DC", "location_rating": "wet", "room_sqft_min": 226, "room_sqft_max": 400, "features": ["smart", "remote", "dc_motor", "outdoor", "light"]},
+  {"product_id": "LX72", "name": "Corvane Loft 72", "blade_span_in": 72, "price_usd": 449, "motor": "DC", "location_rating": "dry", "room_sqft_min": 401, "room_sqft_max": 1000, "features": ["smart", "remote", "dc_motor", "quiet"]},
+  {"product_id": "BS52", "name": "Corvane Basic 52", "blade_span_in": 52, "price_usd": 119, "motor": "AC", "location_rating": "dry", "room_sqft_min": 145, "room_sqft_max": 225, "features": ["remote", "light"]}
+]

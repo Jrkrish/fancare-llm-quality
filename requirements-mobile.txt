@@ -1,0 +1,2 @@
+# Optional: Appium skeleton (tests/mobile). Needs Node + Appium 2 + an Android emulator.
+Appium-Python-Client==6.1.4

@@ -1,0 +1,12 @@
+{
+  "description": "Fixed sample replayed by the nightly drift job. Ids refer to eval/datasets/golden.json.",
+  "case_ids": ["ANS-01", "ANS-06", "ANS-13", "ANS-21", "PAR-01", "UNA-01", "UNA-06", "MH-01", "MH-02", "CON-01", "NM-01", "NM-06"],
+  "runs_per_case": 1,
+  "window": 5,
+  "thresholds": {
+    "max_score_drop": 0.10,
+    "max_hallucination_increase": 0.10,
+    "max_latency_p95_increase_pct": 50,
+    "max_cost_increase_pct": 50
+  }
+}

@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  PYTHONUTF8: "1"
+  FLAKY_RECORD: "1"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install ruff==0.17.3
+      - run: ruff check app eval tests tools monitoring aws
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Unit tests + document extraction eval (no network, no LLM)
+        run: >
+          pytest tests/unit tests/extraction
+          --junitxml=reports/junit/unit.xml --html=reports/html/unit.html --self-contained-html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-reports
+          path: reports/
+
+  api-web-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          playwright: "true"
+      - name: Start the app (no LLM key, so responses are deterministic)
+        env:
+          GROQ_API_KEY: ""
+          TRACE_DB_PATH: logs/traces.db
+          RATE_LIMIT_PER_MIN: "1000"
+        run: |
+          nohup uvicorn app.main:app --port 8000 > reports-app.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf localhost:8000/health && break; sleep 2; done
+          curl -sf localhost:8000/health
+      - name: API tests (contract, validation, auth, rate limit, uploads)
+        env:
+          FANCARE_BASE_URL: http://localhost:8000
+        run: pytest tests/api --junitxml=reports/junit/api.xml --html=reports/html/api.html --self-contained-html
+      - name: Postman collection (newman)
+        run: |
+          npx --yes newman@6.2.3 run postman/FanCare.postman_collection.json \
+            -e postman/FanCare.postman_environment.json --working-dir . \
+            --reporters cli,junit --reporter-junit-export reports/junit/postman.xml
+      - name: Web UI tests (Playwright)
+        run: pytest tests/web --junitxml=reports/junit/web.xml --html=reports/html/web.html --self-contained-html
+      - name: Data validation on the logs written above
+        if: always()
+        run: pytest tests/data --junitxml=reports/junit/data.xml --html=reports/html/data.html --self-contained-html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-web-data-reports
+          path: |
+            reports/
+            reports-app.log
+            test-results/
+
+  llm-suites:
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LLM_MIN_INTERVAL_S: "2.0"
+      LLM_MAX_RETRIES: "5"
+      SUITE_RUNS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Note when secrets are missing
+        if: env.GROQ_API_KEY == ''
+        run: echo "::warning::GROQ_API_KEY secret not set; LLM suites will be skipped."
+      - name: Safety suite (attack success rate per category)
+        run: pytest tests/safety --junitxml=reports/junit/safety.xml --html=reports/html/safety.html --self-contained-html
+      - name: Tool-use eval
+        if: always()
+        run: pytest tests/tooluse --junitxml=reports/junit/tooluse.xml --html=reports/html/tooluse.html --self-contained-html
+      - name: Conversation eval
+        if: always()
+        run: pytest tests/conversation --junitxml=reports/junit/conversation.xml --html=reports/html/conversation.html --self-contained-html
+      - name: Data validation on eval traces
+        if: always()
+        run: pytest tests/data
+      - name: Flakiness report
+        if: always()
+        run: python -m tools.flaky_report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: llm-suite-reports
+          path: reports/
+
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LLM_MIN_INTERVAL_S: "2.0"
+      LLM_MAX_RETRIES: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: RAG eval (DeepEval, smoke profile)
+        run: >
+          pytest tests/eval --eval-profile smoke
+          --junitxml=reports/junit/eval.xml --html=reports/html/eval.html --self-contained-html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-reports
+          path: reports/
+
+  regression-gate:
+    # Make this job a required status check (Settings > Branches) so a regression blocks merging.
+    needs: eval
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: eval-reports
+          path: reports/
+      - name: Compare with the stored baseline
+        run: |
+          if [ ! -f reports/eval/latest/results.json ]; then
+            echo "::warning::No eval results (missing API keys?). Gate skipped."; exit 0
+          fi
+          python -m eval.regression --profile smoke --from-results reports/eval/latest/results.json
+      - name: Publish comparison
+        if: always()
+        run: |
+          [ -f reports/regression/comparison.md ] && cat reports/regression/comparison.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-report
+          path: reports/regression/
