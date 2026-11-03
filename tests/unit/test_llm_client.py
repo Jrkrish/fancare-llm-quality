@@ -98,12 +98,12 @@ def test_judge_strips_reasoning_before_json(monkeypatch):
     assert judge.generate("p", schema=Out).verdict == "yes"
 
 
-def test_oversized_request_is_not_retried(client, monkeypatch):
+def test_oversized_request_waits_for_the_window_then_retries(client, monkeypatch):
+    # Seen mid-run on Groq: the same judge request succeeds once the per-minute window rolls over.
     too_large = '{"error": {"message": "Request too large for model `qwen` on output tokens per minute (OTPM): Limit 6000"}}'
     script(monkeypatch, [resp(429, too_large), resp(200, OK)])
-    with pytest.raises(LLMError, match="retrying cannot help"):
-        client.chat([{"role": "user", "content": "x"}])
-    assert sleeps == []
+    assert client.chat([{"role": "user", "content": "x"}]).content == "hi"
+    assert sleeps == [30.0]
 
 
 def test_max_tokens_is_sent_only_when_set(client, monkeypatch):

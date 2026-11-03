@@ -143,7 +143,7 @@ class EvalRunner:
             try:
                 scores[name] = self._score_metric(name, test_case, response_class, notes)
             except Exception as exc:  # noqa: BLE001 - a judge failure must not abort the whole run
-                scores[name], errors[name] = None, f"{type(exc).__name__}: {str(exc)[:200]}"
+                scores[name], errors[name] = None, f"{type(exc).__name__}: {str(exc)[:500]}"
 
         reasons = []
         if case.expected_behavior == "refuse" and response_class == "answered":

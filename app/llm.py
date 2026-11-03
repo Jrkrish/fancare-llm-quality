@@ -13,6 +13,7 @@ from app.config import PROVIDERS, Settings
 _DAILY_QUOTA_RE = re.compile(r"PerDay|per day|\(RPD\)|\(TPD\)", re.IGNORECASE)
 _RETRY_DELAY_RE = re.compile(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"')
 MAX_WAIT_S = 60
+TOO_LARGE_WAIT_S = 30.0
 
 
 class LLMError(RuntimeError):
@@ -43,6 +44,10 @@ def retry_delay(resp: httpx.Response, attempt: int) -> float:
     match = _RETRY_DELAY_RE.search(resp.text)
     if match:
         return min(float(match.group(1)), MAX_WAIT_S)
+    if "Request too large" in resp.text:
+        # Groq: the request does not fit what is left of this minute's token budget. It comes with
+        # no Retry-After, and short backoffs fail again, so wait for most of the window to roll over.
+        return TOO_LARGE_WAIT_S
     return min(2 ** (attempt + 1), MAX_WAIT_S)
 
 
@@ -118,14 +123,12 @@ class LLMClient:
 
             if resp.status_code == 429 and _DAILY_QUOTA_RE.search(resp.text):
                 raise QuotaExhausted(f"HTTP 429 daily quota exhausted for {model}: {resp.text[:300]}")
-            if resp.status_code == 429 and "Request too large" in resp.text:
-                raise LLMError(f"HTTP 429 request exceeds the per-minute token limit, retrying cannot help: {resp.text[:300]}")
             # Rate limits and server-side errors (incl. Cloudflare 52x) are usually transient.
             if (resp.status_code == 429 or resp.status_code >= 500) and attempt < retries - 1:
                 time.sleep(retry_delay(resp, attempt))
                 continue
             if resp.status_code != 200:
-                raise LLMError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+                raise LLMError(f"HTTP {resp.status_code}: {resp.text[:600]}")
 
             data = resp.json()
             message = data["choices"][0]["message"]

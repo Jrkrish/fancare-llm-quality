@@ -16,7 +16,7 @@ max_error_rate = 0.10      # share of runs allowed to fail for infrastructure re
 # Env overrides: JUDGE_PROVIDER, JUDGE_MODEL.
 provider = "groq"
 model = "qwen/qwen3.8-27b"
-min_interval_s = 2.0       # spacing between judge requests (free-tier RPM)
+min_interval_s = 3.0       # spacing between judge requests; Groq allows Qwen ~7,000 input tokens/min
 # Output cap per judge request. Groq counts it against tokens-per-minute up front, and without it one
 # request was rejected as "Request too large". Judge replies averaged ~200 tokens in the first runs.
 max_tokens = 2048
