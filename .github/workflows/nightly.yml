@@ -19,6 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
+      - name: Check the LLM API key is configured
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then
+            echo "::error title=Missing secret::GROQ_API_KEY is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+            exit 1
+          fi
       # The drift history must accumulate across runs: restore the newest copy from the cache.
       - name: Restore drift history
         uses: actions/cache/restore@v4
