@@ -8,6 +8,10 @@ draw a trend chart and flag drift against recent history.
 Drift is flagged when the latest run is worse than the median of the previous
 `window` runs by more than the thresholds in monitoring/drift_config.json.
 Exits 1 when drift is flagged, so a scheduled CI job shows up red.
+
+A run where more than `max_error_rate` of the cases errored (rate limits, exhausted quota) is not a
+quality signal: it is reported as "not compared", raises a CI warning instead of failing the job, and is
+left out of the baseline for later runs.
 """
 import argparse
 import csv
@@ -69,10 +73,21 @@ def load_history(path: Path = HISTORY) -> list[dict]:
     return rows
 
 
+def unreliable_note(row: dict, th: dict = CONFIG["thresholds"]) -> str | None:
+    """Why a run's scores cannot be trusted (too many errored cases), or None."""
+    limit, err = th.get("max_error_rate"), row.get("error_rate")
+    if limit is None or err is None or err <= limit:
+        return None
+    return f"{err:.0%} of cases errored (limit {limit:.0%}), likely rate limits or exhausted quota; scores not comparable"
+
+
 def detect_drift(history: list[dict], window: int = CONFIG["window"], th: dict = CONFIG["thresholds"]) -> list[str]:
     if len(history) < 2:
         return []
-    latest, previous = history[-1], history[-1 - window:-1]
+    latest = history[-1]
+    if unreliable_note(latest, th):
+        return []
+    previous = [r for r in history[:-1] if not unreliable_note(r, th)][-window:]
 
     def ref(key):
         vals = [r[key] for r in previous if r.get(key) is not None]
@@ -127,7 +142,7 @@ def svg_chart(history: list[dict], series: list[str], title: str, width=720, hei
     return "\n".join(parts)
 
 
-def write_report(history: list[dict], flags: list[str]) -> Path:
+def write_report(history: list[dict], flags: list[str], note: str | None = None) -> Path:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "scores.svg").write_text(svg_chart(history, [*SCORES, "hallucination_rate"], "Quality scores", ymax=1.0), encoding="utf-8")
     (OUT_DIR / "latency.svg").write_text(svg_chart(history, ["latency_p50_ms", "latency_p95_ms"], "Latency (ms)"), encoding="utf-8")
@@ -135,8 +150,8 @@ def write_report(history: list[dict], flags: list[str]) -> Path:
     latest = history[-1] if history else {}
     lines = ["# Drift report", "", f"Runs recorded: {len(history)}. Latest: {latest.get('timestamp')} "
              f"({latest.get('prompt_version')}, {latest.get('provider')}/{latest.get('model')}).", "",
-             f"## {'DRIFT DETECTED' if flags else 'No drift detected'}", ""]
-    lines += [f"- {f}" for f in flags] or ["All metrics within thresholds of the recent median."]
+             f"## {'RUN NOT COMPARED' if note else 'DRIFT DETECTED' if flags else 'No drift detected'}", ""]
+    lines += [f"- {f}" for f in flags] or [note or "All metrics within thresholds of the recent median."]
     lines += ["", "![scores](scores.svg)", "", "![latency](latency.svg)", "", "![cost](cost.svg)", ""]
     (OUT_DIR / "drift_report.md").write_text("\n".join(lines), encoding="utf-8")
     return OUT_DIR / "drift_report.md"
@@ -155,8 +170,13 @@ def main(argv=None) -> int:
             return 2
     history = load_history()
     flags = detect_drift(history)
-    path = write_report(history, flags)
-    print(("DRIFT: " + "; ".join(flags)) if flags else "No drift detected.")
+    note = unreliable_note(history[-1]) if history else None
+    path = write_report(history, flags, note)
+    if note:
+        print(f"::warning title=Drift run not compared::{note}")
+        print(f"Run not compared: {note}")
+    else:
+        print(("DRIFT: " + "; ".join(flags)) if flags else "No drift detected.")
     print(f"Report: {path}")
     return 1 if flags else 0
 
