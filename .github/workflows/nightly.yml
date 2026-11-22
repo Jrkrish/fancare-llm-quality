@@ -36,6 +36,13 @@ jobs:
         id: drift
         run: python -m monitoring.drift
         continue-on-error: true
+      # One tiny request; reads Groq's rate-limit headers. Informational only: never fails the run.
+      - name: Check remaining Groq quota
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m tools.groq_quota
+          [ -f reports/drift/groq_quota.md ] && cat reports/drift/groq_quota.md >> "$GITHUB_STEP_SUMMARY" || true
       - name: Save drift history
         if: always()
         uses: actions/cache/save@v4
