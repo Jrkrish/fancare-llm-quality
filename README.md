@@ -228,6 +228,7 @@ plus non-zero exit on regression. In CI, the `regression-gate` job runs the same
 appends a row to `reports/drift/drift_history.csv`, draws `scores.svg`, `latency.svg` and `cost.svg`, and flags
 drift when the latest run is worse than the median of the previous 5 runs by more than the configured
 thresholds (score drop > 0.10, hallucination rate +0.10, p95 latency +50%, cost +50%, or a model change).
+A run where more than 25% of cases errored (rate limits, exhausted quota) says nothing about quality, so it is reported as "not compared" with a warning, and left out of later baselines.
 The nightly workflow keeps the history across runs and fails when drift is flagged.
 
 Drift report: _not yet run; after a week of nightly runs, link `reports/drift/drift_report.md` and its charts here._

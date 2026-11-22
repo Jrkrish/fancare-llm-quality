@@ -8,7 +8,7 @@ from eval.calibration import agreement, cohen_kappa
 from eval.dataset import load_golden
 from eval.promote_failure import append_case
 from eval.regression import compare
-from monitoring.drift import detect_drift, svg_chart
+from monitoring.drift import detect_drift, svg_chart, unreliable_note
 from tools.flaky_report import analyse
 
 TH = {"max_score_drop": 0.1, "max_hallucination_increase": 0.1, "max_latency_p95_increase_pct": 50, "max_cost_increase_pct": 50}
@@ -53,6 +53,25 @@ class TestDrift:
     def test_model_change_is_flagged(self):
         flags = detect_drift([row("2026-11-01"), row("2026-11-02", model="other")], 5, TH)
         assert any("model changed" in f for f in flags)
+
+    def test_high_error_run_is_not_compared(self):
+        th = {**TH, "max_error_rate": 0.25}
+        hist = [row(f"2026-11-0{i}") for i in range(1, 6)]
+        hist.append(row("2026-11-06", refusal_correctness=0.1, error_rate=0.8))
+        assert detect_drift(hist, 5, th) == []
+        assert "80%" in unreliable_note(hist[-1], th)
+
+    def test_error_heavy_rows_are_left_out_of_the_baseline(self):
+        th = {**TH, "max_error_rate": 0.25}
+        hist = [row("2026-11-01"), row("2026-11-02")]  # refusal 0.9
+        hist += [row(f"2026-11-0{i}", refusal_correctness=1.0, error_rate=0.75) for i in range(3, 6)]
+        hist.append(row("2026-11-06", refusal_correctness=0.85, error_rate=0.0))
+        assert detect_drift(hist, 5, th) == []  # vs 0.9 from the valid nights; the 1.0 error rows would make it a 0.15 drop
+        assert len(detect_drift(hist, 5, TH)) == 1  # without the guard they do
+
+    def test_guard_is_off_without_a_threshold_or_error_rate(self):
+        assert unreliable_note(row("2026-11-01", error_rate=0.9), TH) is None
+        assert unreliable_note(row("2026-11-01"), {**TH, "max_error_rate": 0.25}) is None
 
     def test_svg_chart_renders(self):
         svg = svg_chart([row("2026-11-01"), row("2026-11-02")], ["refusal_correctness"], "Scores", ymax=1.0)
