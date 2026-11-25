@@ -237,7 +237,7 @@ Drift report: _not yet run; after a week of nightly runs, link `reports/drift/dr
 
 | Workflow | Trigger | Jobs |
 |---|---|---|
-| [ci.yml](.github/workflows/ci.yml) | every push / PR | lint, unit + extraction, API + Postman + web + data (against a keyless app), safety + tool-use + conversation, RAG eval (smoke), **regression gate** |
+| [ci.yml](.github/workflows/ci.yml) | push / PR / manual (the two LLM jobs skip plain feature-branch pushes, to save Groq quota) | lint, unit + extraction, API + Postman + web + data (against a keyless app), safety + tool-use + conversation, RAG eval (smoke), **regression gate** |
 | [nightly.yml](.github/workflows/nightly.yml) | daily 03:00 UTC | drift replay with persisted history |
 | [manual.yml](.github/workflows/manual.yml) | manual | load test, full regression matrix, promptfoo red team, Appium on an emulator, AWS upload + Athena |
 
