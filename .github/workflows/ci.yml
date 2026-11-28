@@ -79,11 +79,11 @@ jobs:
             reports-app.log
             test-results/
 
-  # The two LLM jobs below spend Groq's free daily token allowance (about 200K tokens/day), and one
-  # push with an open PR used to run them twice. They now run once per change: on pull requests, on
-  # pushes to main, and on demand (Actions > CI > Run workflow). Plain pushes to a feature branch skip them.
+  # The two LLM jobs below run only when started by hand (Actions > CI > Run workflow). One run of
+  # both can use up Groq's free daily allowance (200K tokens/day per model), so running them on each
+  # push or pull request failed on quota. Pushes and pull requests run the jobs that need no LLM.
   llm-suites:
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -118,7 +118,7 @@ jobs:
           path: reports/
 
   eval:
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -139,7 +139,8 @@ jobs:
           path: reports/
 
   regression-gate:
-    # Make this job a required status check (Settings > Branches) so a regression blocks merging.
+    # Compares the eval job's results with eval/baselines/<profile>.json. It passes without comparing
+    # anything while no baseline is stored.
     needs: eval
     # When eval is skipped there is no eval-reports artifact to compare, so skip the gate too.
     if: always() && needs.eval.result != 'skipped'
