@@ -237,13 +237,13 @@ Drift report: _not yet run; after a week of nightly runs, link `reports/drift/dr
 
 | Workflow | Trigger | Jobs |
 |---|---|---|
-| [ci.yml](.github/workflows/ci.yml) | push / PR / manual (the two LLM jobs skip plain feature-branch pushes, to save Groq quota) | lint, unit + extraction, API + Postman + web + data (against a keyless app), safety + tool-use + conversation, RAG eval (smoke), **regression gate** |
+| [ci.yml](.github/workflows/ci.yml) | push / PR / manual | on every trigger: lint, unit + extraction, API + Postman + web + data (against a keyless app). **Manual only**, to stay within Groq's free quota: safety + tool-use + conversation, RAG eval (smoke), **regression gate** |
 | [nightly.yml](.github/workflows/nightly.yml) | daily 03:00 UTC | drift replay with persisted history |
 | [manual.yml](.github/workflows/manual.yml) | manual | load test, full regression matrix, promptfoo red team, Appium on an emulator, AWS upload + Athena |
 
 Setup: add `GROQ_API_KEY` as a repository secret (`GEMINI_API_KEY` optional; LLM jobs skip with a warning
-without them), and mark the `regression-gate` job as a **required status check** under
-Settings > Branches so a regression blocks merging. Dependencies, ONNX models and the Playwright browser are cached.
+without them). The `regression-gate` job runs only with the manual LLM jobs, and it compares nothing until a
+baseline is stored in `eval/baselines/`, so it does not block merges. Dependencies, ONNX models and the Playwright browser are cached.
 HTML (pytest-html), JUnit and markdown reports are uploaded as artifacts.
 
 ## Results
