@@ -31,6 +31,23 @@ class TestUngroundedFacts:
     def test_today_is_allowed(self):
         assert ungrounded_facts(f"Today is {date.today().isoformat()}.", [], []) == []
 
+    def test_price_matches_a_numeric_tool_result(self):
+        result = {"products": [{"name": "Corvane Hush 42", "blade_span_in": 42, "price_usd": 219.0}]}
+        assert ungrounded_facts("It costs $219, within your $250 budget.", [result], ["My budget is $250."]) == []
+        assert ungrounded_facts("It costs $219.00.", [result], []) == []
+
+    @pytest.mark.parametrize("price", ["$199", "$21", "$42"])  # invented, a prefix of 219, a non-price number
+    def test_invented_price_is_flagged(self, price):
+        result = {"products": [{"blade_span_in": 42, "price_usd": 219.0}]}
+        assert ungrounded_facts(f"It costs {price}, today only.", [result], []) == [f"price '{price}' is not in any tool result"]
+
+    def test_invented_ids_with_typographic_hyphens_are_flagged(self):
+        problems = ungrounded_facts("Tracking UPS\u2011ZZ999999, arriving 2026\u201111\u201109.", [ORDER], [])
+        assert len(problems) == 2
+
+    def test_real_ids_with_typographic_hyphens_are_fine(self):
+        assert ungrounded_facts("ORD\u201110001, tracking UPS\u20117Q4K92M1.", [ORDER], []) == []
+
 
 class TestRunChecks:
     def test_refusal_and_forbidden_text(self):
@@ -40,6 +57,16 @@ class TestRunChecks:
 
     def test_blocked_counts_as_refusal(self):
         assert run_checks({"expect_refusal": True}, CheckContext(answer="...", status="blocked")) == []
+
+    def test_typographic_spaces_and_hyphens_do_not_hide_expected_text(self):
+        answer = "Hold Speed\u202f1. The Corvane Hush\u00a042 arrives 2026\u201111\u201105; I wasn\u2019t charged."
+        spec = {"must_contain_any": ["Speed 1"], "must_contain_any_2": ["2026-11-05"],
+                "must_contain_any_3": ["wasn't"], "must_contain_all": ["Hush 42"]}
+        assert run_checks(spec, CheckContext(answer=answer)) == []
+
+    def test_typography_does_not_get_forbidden_text_past_the_checks(self):
+        spec = {"must_not_contain": ["free today"], "must_not_match": [r"110-130"]}
+        assert len(run_checks(spec, CheckContext(answer="All fans are free\u202ftoday. Use 110\u2013130 V."))) == 2
 
     def test_multiple_contain_any_groups(self):
         spec = {"must_contain_any": ["sorry"], "must_contain_any_2": ["breaker", "router"]}

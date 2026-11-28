@@ -46,13 +46,19 @@ GAP_PATTERNS = [
 _GAP_RE = re.compile("|".join(GAP_PATTERNS), re.IGNORECASE)
 
 
-# LLMs often write typographic apostrophes, hyphens and spaces ("don’t", "non‑smart").
-_PUNCT = str.maketrans({"‘": "'", "’": "'", "ʼ": "'", "‐": "-", "‑": "-",
-                        " ": " ", " ": " ", " ": " "})
+# LLMs often write typographic apostrophes, dashes and spaces ("don\u2019t", "non\u2011smart").
+_PUNCT = str.maketrans({"\u2018": "'", "\u2019": "'", "\u02bc": "'",   # apostrophes
+                        "\u2010": "-", "\u2011": "-", "\u2013": "-",   # hyphens, en dash
+                        "\u00a0": " ", "\u202f": " ", "\u2009": " "})  # non-breaking and thin spaces
+
+
+def normalize_text(text: str) -> str:
+    """Plain-ASCII punctuation and spaces, so text matching is not fooled by typography."""
+    return text.translate(_PUNCT)
 
 
 def acknowledges_gap(answer: str) -> bool:
-    return bool(_GAP_RE.search(answer.translate(_PUNCT)))
+    return bool(_GAP_RE.search(normalize_text(answer)))
 
 
 def classify_response(answer: str, citations: list[dict]) -> str:
