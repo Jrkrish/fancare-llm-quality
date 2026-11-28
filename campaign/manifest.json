@@ -1,0 +1,24 @@
+{
+  "description": "Measurement runs that fill the README results on Groq's free tier, one item per day, in this order. code_commit pins the bot and eval code every item runs, so results can be combined.",
+  "code_commit": "6075c6bca57705f23adc876ae976df8b47015d8b",
+  "not_before": "2026-11-29T17:00:00+00:00",
+  "min_gap_hours": 24,
+  "max_invalid_attempts": 2,
+  "items": [
+    {"id": "full-1", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-01", "ANS-08", "ANS-15", "ANS-22", "PAR-02", "UNA-01", "UNA-08", "MH-01", "MH-08", "NM-07"]},
+    {"id": "full-2", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-02", "ANS-09", "ANS-16", "PAR-03", "UNA-02", "UNA-09", "MH-02", "CON-01", "NM-01", "NM-08"]},
+    {"id": "full-3", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-03", "ANS-10", "ANS-17", "PAR-04", "UNA-03", "UNA-10", "MH-03", "CON-02", "NM-02", "NM-09"]},
+    {"id": "full-4", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-04", "ANS-11", "ANS-18", "PAR-05", "UNA-04", "MH-04", "CON-03", "NM-03", "NM-10"]},
+    {"id": "full-5", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-05", "ANS-12", "ANS-19", "PAR-06", "UNA-05", "MH-05", "CON-04", "NM-04", "NM-11"]},
+    {"id": "full-6", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-06", "ANS-13", "ANS-20", "PAR-07", "UNA-06", "MH-06", "CON-05", "NM-05", "NM-12"]},
+    {"id": "full-7", "kind": "eval", "args": ["--profile", "full"], "cases": ["ANS-07", "ANS-14", "ANS-21", "PAR-01", "PAR-08", "UNA-07", "MH-07", "CON-06", "NM-06"]},
+    {"id": "regression-v1", "kind": "eval", "args": ["--profile", "smoke", "--prompt", "v1"], "expected_cases": 12},
+    {"id": "regression-v2", "kind": "eval", "args": ["--profile", "smoke", "--prompt", "v2"], "expected_cases": 12},
+    {"id": "regression-v3", "kind": "eval", "args": ["--profile", "smoke", "--prompt", "v3"], "expected_cases": 12},
+    {"id": "regression-v1-20b", "kind": "eval", "args": ["--profile", "smoke", "--prompt", "v1", "--provider", "groq", "--model", "openai/gpt-oss-20b"], "expected_cases": 12},
+    {"id": "safety", "kind": "safety", "args": ["--runs", "1"], "expected_cases": 42},
+    {"id": "tool-use", "kind": "tool_use", "args": ["--runs", "1"], "expected_cases": 20},
+    {"id": "conversation", "kind": "conversation", "args": ["--runs", "1"], "expected_cases": 6},
+    {"id": "load", "kind": "load", "args": []}
+  ]
+}

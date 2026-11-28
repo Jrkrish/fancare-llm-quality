@@ -231,7 +231,31 @@ thresholds (score drop > 0.10, hallucination rate +0.10, p95 latency +50%, cost 
 A run where more than 25% of cases errored (rate limits, exhausted quota) says nothing about quality, so it is reported as "not compared" with a warning, and left out of later baselines.
 The nightly workflow keeps the history across runs and fails when drift is flagged.
 
-Drift report: _not yet run; after a week of nightly runs, link `reports/drift/drift_report.md` and its charts here._
+### Drift history, 2026-11-06 to 2026-11-28
+
+25 runs of `openai/gpt-oss-120b` with prompt v1, 12 cases x 1 run each, no judge (so faithfulness is not
+measured here). 22 runs could be compared. Snapshot of the history: [docs/drift/drift_history.csv](docs/drift/drift_history.csv).
+
+| Metric (over the 22 comparable runs) | Min | Median | Max |
+|---|---|---|---|
+| refusal_correctness | 0.917 | 1.000 | 1.000 |
+| citation_correctness | 0.793 | 0.926 | 0.963 |
+| retrieval_recall | 0.867 | 0.950 | 1.000 |
+| hallucination_rate | 0.000 | 0.000 | 0.000 |
+| latency p50 | 6.7 s | 12.6 s | 16.3 s |
+| latency p95 | 30.9 s | 41.0 s | 68.8 s |
+| estimated cost per query (list price) | $0.00058 | $0.00066 | $0.00082 |
+
+- **One run was flagged.** On 2026-11-10 citation_correctness fell from a 5-run median of 0.926 to 0.793; the
+  next night it was 0.963. With 12 cases at one run each, a single case moves a score by about 0.08.
+- **Three runs were not compared** (2026-11-22, and two on 2026-11-25): more than 25% of cases errored.
+  Hallucination here comes from the deterministic checks only, and latency includes waits for rate limits.
+
+The charts plot every run, including the three that were not compared.
+
+![Quality scores per drift run](docs/drift/scores.svg)
+![Latency per drift run](docs/drift/latency.svg)
+![Estimated cost per query per drift run](docs/drift/cost.svg)
 
 ## CI/CD
 
@@ -240,6 +264,7 @@ Drift report: _not yet run; after a week of nightly runs, link `reports/drift/dr
 | [ci.yml](.github/workflows/ci.yml) | push / PR / manual | on every trigger: lint, unit + extraction, API + Postman + web + data (against a keyless app). **Manual only**, to stay within Groq's free quota: safety + tool-use + conversation, RAG eval (smoke), **regression gate** |
 | [nightly.yml](.github/workflows/nightly.yml) | daily 03:00 UTC | drift replay with persisted history |
 | [manual.yml](.github/workflows/manual.yml) | manual | load test, full regression matrix, promptfoo red team, Appium on an emulator, AWS upload + Athena |
+| [measure.yml](.github/workflows/measure.yml) | hourly check (when the `MEASUREMENT_ENABLED` repository variable is `true`) / manual | one [measurement item](#measurement-runs) per day |
 
 Setup: add `GROQ_API_KEY` as a repository secret (`GEMINI_API_KEY` optional; LLM jobs skip with a warning
 without them). The `regression-gate` job runs only with the manual LLM jobs, and it compares nothing until a
@@ -248,7 +273,27 @@ HTML (pytest-html), JUnit and markdown reports are uploaded as artifacts.
 
 ## Results
 
-All cells are filled from real runs of this repo.
+All numbers come from real runs of this repo. A cell marked "not yet run" has no measurement yet.
+
+### Measurement runs
+
+The missing results do not fit in one day of Groq's free tier (200K tokens per day per model), so they are
+measured one item per day: seven batches of the full eval, four smoke variants for the regression table,
+then the safety, tool-use and conversation suites (one run per case) and the load test.
+
+- [campaign/manifest.json](campaign/manifest.json) lists the items and pins the commit of the bot and eval
+  code that all of them run, so their results can be combined.
+- [measure.yml](.github/workflows/measure.yml) runs the next item at least 24 hours after the previous one.
+  An item that lost more than 10% of its runs (or judge scores) to errors does not count and is repeated;
+  after two such attempts the schedule stops at that item until someone looks. The load test only has to
+  complete, since errors under load are part of its result. Suites run without test reruns.
+- Each item's reports are kept as a `batch-<commit>-<item>` artifact for 90 days.
+- The full eval's batches are merged offline with `python -m eval.combine <results.json> ...`, which
+  recomputes every average and percentile from the individual runs. The regression table then comes from
+  `python -m eval.regression --profile smoke --from-results <results.json> ... --update-baseline`
+  (the first file, v1 on gpt-oss-120b, becomes the baseline).
+- Judge calibration still needs a person: after the full eval is combined, label 20 runs with
+  `python -m eval.calibration sample` and `label`.
 
 ### Smoke runs so far
 
@@ -406,6 +451,8 @@ tests/framework/    BaseTest, ApiClient, OpenApiValidator, LiveServer
 redteam/            promptfoo red-team and static configs
 postman/            Postman collection + environment
 aws/                S3 upload, Athena table and query
-tools/              flakiness report
-.github/            CI, nightly drift, manual jobs, shared setup action
+tools/              flakiness report, Groq quota probe, measurement-run picker
+campaign/           manifest of the daily measurement runs
+docs/drift/         snapshot of the drift history and charts
+.github/            CI, nightly drift, daily measurement, manual jobs, shared setup action
 ```

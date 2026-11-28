@@ -11,6 +11,10 @@ env:
 jobs:
   drift:
     runs-on: ubuntu-latest
+    # Shared with the daily measurement run so the two never compete for the per-minute token limit.
+    concurrency:
+      group: groq-quota
+      cancel-in-progress: false
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
