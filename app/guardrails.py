@@ -20,6 +20,27 @@ INJECTION_PATTERNS = [
     r"\b(system|developer|admin)\s+(note|message|override|command)\b[^.\n]{0,30}\b(ai|assistant|model|bot|chatbot)\b",
     r"</?\s*(system|assistant|instructions?)\s*>",
     r"\byou (are|will) now\b[^.\n]{0,40}\b(not|no longer|unrestricted|without)\b",
+    # A standing change to how the bot replies: "from now on you only answer in ...".
+    # It must be addressed to the bot, so "from now on the fan won't respond" is allowed.
+    r"\bfrom now on\b[^.\n]{0,20}\byou(?:['’]ll| will| must| should| shall| can| are to)?(?: only| always)?"
+    r" (?:answer|reply|respond|speak|talk|write)\b",
+    r"\bfrom now on\W+(?:please )?(?:only |always )?(?:answer|reply|respond|speak|talk|write)"
+    r"(?= (?:only |always )?(?:in|with|like|as|using)\b)",
+    # Text dictated for every reply: "end every answer with ...", "add ... to each of your replies".
+    r"\b(?:end|start|begin|finish|prefix|open|close|conclude|sign off)\b[^.\n]{0,15}\b(?:every|each|all)\b"
+    r"(?:[^.\n]{0,10}\b(?:answers?|repl(?:y|ies)|responses?)| (?:of )?your messages?)\b[^.\n]{0,10}\b(?:with|by)\b",
+    # (?:[^.\n]|\.(?!\s)) lets the dictated text contain a dot, as in a web address.
+    # Other ways to say "on every reply from here". Each needs an instruction about how the bot replies.
+    r"\b(?:talk|speak|answer|reply|respond|write|act)\b[^.\n]{0,30}\bfor the rest of (?:this|the|our) (?:chat|conversation)\b",
+    r"\b(?:from this point (?:on|forward)|for the rest of (?:this|the|our) (?:chat|conversation)"
+    r"|for all (?:future|following|subsequent) (?:replies|answers|responses))\b"
+    r"(?:\W+(?:please )?(?:only |always )?|\W+you(?: must| will| should| shall)?(?: only| always)? )"
+    r"(?:talk|speak|answer|reply|respond|write)\b",
+    r"\bwhenever you (?:answer|reply|respond)\b[^.\n]{0,15}\b(?:end|start|begin|finish|include|add|say|use|talk|speak|write)\b",
+    r"\bin (?:every|each|all(?: of)? your) (?:single )?(?:answers?|repl(?:y|ies)|responses?)\b"
+    r"\W+(?:please |you must |always )?(?:include|add|say|write|mention|end|start|finish|use)\b",
+    r"\b(?:add|append|include|put|say|write)\b(?:[^.\n]|\.(?!\s)){0,60}\b(?:to|in|at|after|before)\b[^.\n]{0,25}"
+    r"\b(?:every|each|all(?: of)? your)\b[^.\n]{0,10}\b(?:answers?|repl(?:y|ies)|responses?)\b",
 ]
 JAILBREAK_PATTERNS = [
     r"\bDAN\b",
